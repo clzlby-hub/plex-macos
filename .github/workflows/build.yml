@@ -23,18 +23,12 @@ jobs:
           xcodebuild \
             -project Strimr.xcodeproj \
             -scheme Strimr-macOS \
-            -destination 'generic/platform=macOS' \
+            -destination 'platform=macOS,arch=arm64' \
             -configuration Release \
             -derivedDataPath build/DerivedData \
-            PRODUCT_NAME=Plex \
-            INFOPLIST_KEY_CFBundleDisplayName=Plex \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            PROVISIONING_PROFILE_SPECIFIER="" \
-            DEVELOPMENT_TEAM="" \
-            ENABLE_APP_SANDBOX=NO \
-            REGISTER_APP_GROUPS=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
             build
 
       - name: Ad-hoc sign and package Plex.app
