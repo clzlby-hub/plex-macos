@@ -72,7 +72,7 @@ struct HomeRowsSettingsView: View {
             .settingsFocus("homeHero", isDefault: true)
         #else
             Picker("settings.interface.homeHero", selection: heroSelection) {
-                ForEach(HomeHeroSource.allCases, id: \.self) { source in
+                ForEach(HomeHeroSource.allCases.filter { $0 != .discover }, id: \.self) { source in
                     Text(source.title).tag(source)
                 }
             }

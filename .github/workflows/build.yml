@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   macos-release:
     runs-on: xcode-27
@@ -39,9 +42,11 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" build/Plex-macOS.zip
           ls -lh build/Plex-macOS.zip
 
-      - name: Upload Plex.app Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: Plex-macOS
-          path: build/Plex-macOS.zip
-          if-no-files-found: error
+      - name: Publish to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v1.3.4-plex build/Plex-macOS.zip \
+            --title "Plex macOS Native" \
+            --notes "Custom native macOS Plex build" \
+            --clobber

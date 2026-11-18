@@ -12,6 +12,8 @@ final class PlayerFullscreenCoordinator {
     @ObservationIgnored private var notificationObservers: [NSObjectProtocol] = []
 
     func attach(to window: NSWindow) {
+        window.identifier = NSUserInterfaceItemIdentifier(AppModel.playerWindowID)
+        bringToFront(window)
         if let currentWindow = self.window {
             if currentWindow === window, !isFullScreen, !isTransitioning {
                 configureWindowForFullScreen(currentWindow)
@@ -75,6 +77,23 @@ final class PlayerFullscreenCoordinator {
         guard !isTransitioning, let window else { return }
         configureWindowForFullScreen(window)
         window.toggleFullScreen(nil)
+    }
+
+    func bringToFront(_ targetWindow: NSWindow? = nil) {
+        let win = targetWindow ?? window
+        guard let win else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        if win.isMiniaturized {
+            win.deminiaturize(nil)
+        }
+        win.makeKeyAndOrderFront(nil)
+        win.orderFrontRegardless()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak win] in
+            guard let win else { return }
+            NSApp.activate(ignoringOtherApps: true)
+            win.makeKeyAndOrderFront(nil)
+            win.orderFrontRegardless()
+        }
     }
 
     func detach() {

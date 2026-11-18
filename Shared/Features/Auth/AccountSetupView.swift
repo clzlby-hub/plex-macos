@@ -13,24 +13,17 @@ struct AccountSetupView: View {
 
     var body: some View {
         NavigationStack(path: $flow.path) {
-            ProviderSelectionView(onSelect: flow.choose)
-                .safeAreaInset(edge: .bottom) {
-                    if flow.canFinishFromProviderChoice {
-                        Button("common.actions.continue") {
-                            Task { await flow.finish() }
-                        }
-                        .actionButtonStyle(.primary)
-                        .padding()
+            SignInView(viewModel: SignInViewModel(onToken: { token in
+                try await flow.plexSignedIn(token: token)
+            }))
+            .toolbar {
+                if flow.purpose != .firstLaunch {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("common.actions.cancel") { flow.cancel() }
                     }
                 }
-                .toolbar {
-                    if flow.purpose != .firstLaunch {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button("common.actions.cancel") { flow.cancel() }
-                        }
-                    }
-                }
-                .navigationDestination(for: AccountSetupFlow.Step.self, destination: destination)
+            }
+            .navigationDestination(for: AccountSetupFlow.Step.self, destination: destination)
         }
         .onChange(of: flow.isFinished) { _, isFinished in
             if isFinished {

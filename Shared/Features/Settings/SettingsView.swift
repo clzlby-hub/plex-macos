@@ -50,9 +50,6 @@ struct SettingsView: View {
                     NavigationLink("settings.storage.title") {
                         SettingsStorageView()
                     }
-                    NavigationLink("settings.integrations.title") {
-                        IntegrationsView()
-                    }
                 #endif
             }
 

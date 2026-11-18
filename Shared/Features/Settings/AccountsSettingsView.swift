@@ -15,15 +15,11 @@ struct AccountsSettingsView: View {
 
     var body: some View {
         List {
-            ForEach(sessionManager.accounts) { account in
+            ForEach(sessionManager.accounts.filter { $0.provider == .plex }) { account in
                 Section {
                     accountContent(account)
                 } header: {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(account.displayName)
-                        Text(account.provider == .plex ? "provider.plex" : "provider.jellyfin")
-                            .font(.cardMetadata)
-                    }
+                    Text(account.displayName)
                 } footer: {
                     if sessionManager.isAccountUnused(account.id) {
                         Text("settings.accounts.unused")

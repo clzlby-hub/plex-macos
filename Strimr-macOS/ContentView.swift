@@ -51,6 +51,21 @@ struct ContentView: View {
         .onChange(of: appModel.playerPresentation?.id) { _, presentationID in
             guard presentationID != nil else { return }
             openWindow(id: AppModel.playerWindowID)
+            for delay in [0.02, 0.1, 0.25] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    NSApp.activate(ignoringOtherApps: true)
+                    if let playerWin = NSApp.windows.first(where: {
+                        $0.identifier?.rawValue == AppModel.playerWindowID
+                            || $0.title == String(localized: "player.window.title")
+                    }) {
+                        if playerWin.isMiniaturized {
+                            playerWin.deminiaturize(nil)
+                        }
+                        playerWin.makeKeyAndOrderFront(nil)
+                        playerWin.orderFrontRegardless()
+                    }
+                }
+            }
         }
         .onChange(of: registry.connectedServices.map(ObjectIdentifier.init), initial: true) { _, _ in
             downloadManager.activateSession(services: registry.connectedServices)

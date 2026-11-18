@@ -68,7 +68,7 @@ struct SettingsInterfaceView: View {
                         Text(screen.title).tag(screen)
                     }
                 }
-                #if os(iOS)
+                #if os(iOS) || os(macOS)
                     Toggle(
                         "settings.interface.displayFavoritesTab",
                         isOn: Binding(

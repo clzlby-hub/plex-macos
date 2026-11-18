@@ -26,15 +26,14 @@ struct MainView: View {
             List(selection: $appModel.selection) {
                 Section {
                     sidebarLabel("tabs.home", systemImage: "house.fill", item: .home)
-
-                    if isDiscoverAvailable {
-                        sidebarLabel("tabs.discover", systemImage: "sparkles", item: .discover)
-                    }
-
                     sidebarLabel("tabs.search", systemImage: "magnifyingglass", item: .search)
-                    sidebarLabel("downloads.title", systemImage: "arrow.down.circle.fill", item: .downloads)
+                    if settingsManager.interface.displayDownloadsTab {
+                        sidebarLabel("downloads.title", systemImage: "arrow.down.circle.fill", item: .downloads)
+                    }
                     sidebarLabel("tabs.libraries", systemImage: "rectangle.stack.fill", item: .libraries)
-                    sidebarLabel("tabs.favorites", systemImage: "star.fill", item: .favorites)
+                    if settingsManager.interface.displayFavoritesTab {
+                        sidebarLabel("tabs.favorites", systemImage: "star.fill", item: .favorites)
+                    }
                     if isLiveTVAvailable {
                         sidebarLabel("livetv.title", systemImage: "tv", item: .liveTV)
                     }
@@ -126,9 +125,10 @@ struct MainView: View {
     }
 
     @State private var lastPlayedServer: ServerIdentity?
+    @State private var isShowingProfilePopover = false
 
     private var isDiscoverAvailable: Bool {
-        settingsManager.interface.displaySeerrDiscoverTab && seerrStore.isLoggedIn
+        false
     }
 
     private var isLiveTVAvailable: Bool {
@@ -151,17 +151,82 @@ struct MainView: View {
     }
 
     private var profileMenu: some View {
-        Menu {
-            if sessionManager.profiles.count > 1 {
-                Button("common.actions.switchProfile", systemImage: "person.2.circle") {
-                    sessionManager.requestProfileSelection()
-                }
-                .disabled(offlineCoordinator.isFullyOffline)
-            }
+        Button {
+            isShowingProfilePopover.toggle()
         } label: {
-            Label(sessionManager.activeProfile?.name ?? "Plex", systemImage: "person.crop.circle")
+            HStack(spacing: 6) {
+                profileAvatarView(size: 26)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .contentShape(Capsule())
         }
-        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .popover(isPresented: $isShowingProfilePopover, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    profileAvatarView(size: 40)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(sessionManager.activeProfile?.name ?? "Plex")
+                            .font(.headline)
+                        Text("Plex")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.bottom, 4)
+
+                Divider()
+
+                if sessionManager.profiles.count > 1 {
+                    Button {
+                        isShowingProfilePopover = false
+                        sessionManager.requestProfileSelection()
+                    } label: {
+                        Label("common.actions.switchProfile", systemImage: "person.2.circle")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(offlineCoordinator.isFullyOffline)
+                }
+
+                Button {
+                    isShowingProfilePopover = false
+                    appModel.selection = .settings
+                } label: {
+                    Label("settings.title", systemImage: "gearshape")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(14)
+            .frame(minWidth: 200)
+        }
+    }
+
+    @ViewBuilder
+    private func profileAvatarView(size: CGFloat) -> some View {
+        ZStack {
+            if let url = sessionManager.activeProfileAvatarURL {
+                ArtworkResourceView(resource: .url(url), contentMode: .fill)
+            } else {
+                Circle()
+                    .fill(Color.brandPrimary.opacity(0.25))
+                    .overlay {
+                        Text(String((sessionManager.activeProfile?.name ?? "P").prefix(1)).uppercased())
+                            .font(.system(size: size * 0.48, weight: .bold))
+                            .foregroundStyle(Color.brandPrimary)
+                    }
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .overlay {
+            Circle().strokeBorder(Color.brandPrimary.opacity(0.75), lineWidth: 1.5)
+        }
     }
 
     @ViewBuilder

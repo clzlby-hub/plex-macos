@@ -5,6 +5,8 @@ struct CardFocusStyle: ViewModifier {
     static var focusedScale: CGFloat {
         #if os(tvOS)
             1.06
+        #elseif os(macOS)
+            1.02
         #else
             1.04
         #endif
@@ -16,23 +18,33 @@ struct CardFocusStyle: ViewModifier {
     let isPressed: Bool
 
     func body(content: Content) -> some View {
-        content
-            // Only the focused card casts a shadow: each shadow costs an offscreen pass, and one on every card
-            // tripled the render time of the home rows.
-            .shadow(
-                color: .black.opacity(isFocused ? 0.45 : 0),
-                radius: isFocused ? 18 : 0,
-                y: isFocused ? 8 : 0,
-            )
-            .animation(Motion.focus, value: isFocused)
-            .scaleEffect(scale)
-            .animation(Motion.animation(Motion.focusScale, reduceMotion: reduceMotion), value: scale)
+        #if os(macOS)
+            content
+                .overlay {
+                    if isFocused {
+                        RoundedRectangle(cornerRadius: MediaArtworkMetrics.cornerRadius, style: .continuous)
+                            .strokeBorder(Color.brandPrimary.opacity(0.9), lineWidth: 2)
+                    }
+                }
+                .scaleEffect(scale)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isFocused)
+        #else
+            content
+                .shadow(
+                    color: .black.opacity(isFocused ? 0.45 : 0),
+                    radius: isFocused ? 18 : 0,
+                    y: isFocused ? 8 : 0,
+                )
+                .animation(Motion.focus, value: isFocused)
+                .scaleEffect(scale)
+                .animation(Motion.animation(Motion.focusScale, reduceMotion: reduceMotion), value: scale)
+        #endif
     }
 
     private var scale: CGFloat {
         guard !reduceMotion else { return 1 }
         if isPressed {
-            return 0.97
+            return 0.98
         }
         return isFocused ? Self.focusedScale : 1
     }
@@ -77,7 +89,7 @@ extension ButtonStyle where Self == CardLiftButtonStyle {
 }
 
 #if os(macOS)
-    /// Pointer counterpart of the tvOS focus lift for buttons that are not cards: a slight grow and a soft shadow.
+    /// Pointer counterpart of the tvOS focus lift for buttons that are not cards: a slight grow without heavy shadow blur.
     struct HoverLift: ViewModifier {
         @Environment(\.accessibilityReduceMotion) private var reduceMotion
         @Environment(\.isEnabled) private var isEnabled
@@ -87,10 +99,8 @@ extension ButtonStyle where Self == CardLiftButtonStyle {
 
         func body(content: Content) -> some View {
             content
-                .shadow(color: .black.opacity(isLifted ? 0.35 : 0), radius: 12, y: 4)
-                .animation(Motion.focus, value: isLifted)
-                .scaleEffect(isLifted && !reduceMotion ? scale : 1)
-                .animation(Motion.animation(Motion.focusScale, reduceMotion: reduceMotion), value: isLifted)
+                .scaleEffect(isLifted && !reduceMotion ? min(scale, 1.025) : 1)
+                .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: isLifted)
                 .onHover { isHovered = $0 }
         }
 
@@ -100,7 +110,7 @@ extension ButtonStyle where Self == CardLiftButtonStyle {
     }
 
     extension View {
-        func hoverLift(scale: CGFloat = 1.06) -> some View {
+        func hoverLift(scale: CGFloat = 1.025) -> some View {
             modifier(HoverLift(scale: scale))
         }
     }

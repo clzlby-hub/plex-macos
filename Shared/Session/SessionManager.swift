@@ -114,9 +114,22 @@ final class SessionManager {
         profileStore.profiles(accounts: accountStore.accounts)
     }
 
-    /// Avatar of the active profile: the Plex avatar of a Home user; local profiles use their initials.
+    /// Avatar of the active profile: the Plex avatar of a Home user; local profiles use their linked Plex user or initials.
     var activeProfileAvatarURL: URL? {
-        activeProfile?.plexHomeProfile?.user.thumb
+        if let thumb = activeProfile?.plexHomeProfile?.user.thumb {
+            return thumb
+        }
+        if let activeProfile {
+            for link in profileStore.links(for: activeProfile) {
+                if case let .plexHome(uuid) = link.user,
+                   let user = profileStore.state.plexHomeUsers[link.accountID]?.first(where: { $0.uuid == uuid }),
+                   let thumb = user.thumb
+                {
+                    return thumb
+                }
+            }
+        }
+        return profileStore.state.plexHomeUsers.values.flatMap { $0 }.compactMap(\.thumb).first
     }
 
     /// A restricted Plex profile cannot manage accounts, profiles or their connections; other profiles can manage it.

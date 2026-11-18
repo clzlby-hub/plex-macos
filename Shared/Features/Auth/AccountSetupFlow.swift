@@ -95,7 +95,7 @@ final class AccountSetupFlow {
             profileID: PlexHomeProfile.id(userUUID: userUUID),
             accountID: accountID,
         )
-        path.append(.addAnotherAccount)
+        Task { await finish() }
     }
 
     func jellyfinSignedIn(session: JellyfinAuthenticatedSession, connection: JellyfinConnection) throws {

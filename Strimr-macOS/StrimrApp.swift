@@ -12,6 +12,11 @@ struct StrimrApp: App {
     @State private var externalPlaybackCallbackRouter = ExternalPlaybackCallbackRouter()
 
     init() {
+        URLCache.shared = URLCache(
+            memoryCapacity: 256 * 1024 * 1024,
+            diskCapacity: 1024 * 1024 * 1024,
+            directory: nil
+        )
         let favoritesStore = FavoritesStore()
         #if DEBUG
             let demoStores = DemoStores.makeIfEnabled()

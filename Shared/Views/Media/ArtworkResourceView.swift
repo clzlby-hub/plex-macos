@@ -137,7 +137,7 @@ private struct RemoteArtworkImage: View {
             } else if failedURL == url {
                 Color.surfaceSubtle
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                Color.surfaceSubtle
             }
         }
         .task(id: url) { await load() }

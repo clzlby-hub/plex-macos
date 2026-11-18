@@ -14,6 +14,12 @@ struct PlayerWindowView: View {
             )
             .environment(presentation.mediaServices)
             .id(presentation.id)
+            .onAppear {
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            .onChange(of: presentation.id) { _, _ in
+                NSApp.activate(ignoringOtherApps: true)
+            }
         } else {
             ContentUnavailableView("player.window.title", systemImage: "play.rectangle")
         }
