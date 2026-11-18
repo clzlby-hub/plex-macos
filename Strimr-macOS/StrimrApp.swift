@@ -1,7 +1,9 @@
+import AppKit
 import SwiftUI
 
 @main
 struct StrimrApp: App {
+    @NSApplicationDelegateAdaptor(StrimrAppDelegate.self) private var appDelegate
     @State private var sessionManager: SessionManager
     @State private var settingsManager: SettingsManager
     @State private var downloadManager: DownloadManager
@@ -108,5 +110,49 @@ struct StrimrApp: App {
             .environment(sharePlayCoordinator)
             .environment(OfflineCoordinator.shared)
             .environment(externalPlaybackCallbackRouter)
+    }
+}
+
+@MainActor
+private final class StrimrAppDelegate: NSObject, NSApplicationDelegate {
+    private var windowCloseObserver: NSObjectProtocol?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        windowCloseObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            guard let closingWindow = note.object as? NSWindow else { return }
+            MainActor.assumeIsolated {
+                self?.handleWindowWillClose(closingWindow)
+            }
+        }
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        true
+    }
+
+    private func handleWindowWillClose(_ closingWindow: NSWindow) {
+        guard !(closingWindow is NSPanel),
+              closingWindow.sheetParent == nil,
+              closingWindow.styleMask.contains(.titled),
+              closingWindow.identifier?.rawValue != AppModel.playerWindowID
+        else { return }
+
+        let hasOtherVisibleWindow = NSApp.windows.contains { window in
+            window !== closingWindow
+                && window.isVisible
+                && !(window is NSPanel)
+                && window.sheetParent == nil
+                && window.styleMask.contains(.titled)
+        }
+
+        if !hasOtherVisibleWindow {
+            DispatchQueue.main.async {
+                NSApp.terminate(nil)
+            }
+        }
     }
 }
