@@ -3,7 +3,6 @@ import SwiftUI
 
 struct PlayerWindowView: View {
     @Environment(AppModel.self) private var appModel
-    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         if let presentation = appModel.playerPresentation,
@@ -15,27 +14,9 @@ struct PlayerWindowView: View {
             )
             .environment(presentation.mediaServices)
             .id(presentation.id)
-            .onAppear {
-                NSApp.activate(ignoringOtherApps: true)
-            }
-            .onChange(of: presentation.id) { _, _ in
-                NSApp.activate(ignoringOtherApps: true)
-            }
         } else {
             Color.black
                 .ignoresSafeArea()
-                .background {
-                    PlayerWindowReader { window in
-                        if window.styleMask.contains(.fullScreen) {
-                            window.toggleFullScreen(nil)
-                        }
-                        window.orderOut(nil)
-                        window.close()
-                    }
-                }
-                .onAppear {
-                    dismissWindow(id: AppModel.playerWindowID)
-                }
         }
     }
 
@@ -291,7 +272,9 @@ struct PlayerView: View {
         .background(.black)
         .background {
             PlayerWindowReader { window in
-                fullscreenCoordinator.attach(to: window)
+                fullscreenCoordinator.attach(to: window) {
+                    closePlayer(force: true)
+                }
             }
         }
     }
@@ -1961,8 +1944,7 @@ struct PlayerView: View {
         }
         restoreCursor()
         stopPlayback()
-        fullscreenCoordinator.closeWindow()
-        dismissWindow(id: AppModel.playerWindowID)
+        fullscreenCoordinator.hideWindow()
         appModel.resetPlayer()
     }
 
