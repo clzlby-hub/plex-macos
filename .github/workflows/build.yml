@@ -1,0 +1,53 @@
+name: Build Plex macOS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  macos-release:
+    runs-on: xcode-27
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure xcconfig
+        run: |
+          cp Config/Config-example.xcconfig Config/Config.xcconfig
+          printf '\nPRODUCT_BUNDLE_IDENTIFIER = tv.plex.macos.custom\n' >> Config/Config.xcconfig
+          touch Config/Config-TopShelf.xcconfig
+
+      - name: Build Native macOS Release (Plex.app)
+        run: |
+          xcodebuild \
+            -project Strimr.xcodeproj \
+            -scheme Strimr-macOS \
+            -destination 'generic/platform=macOS' \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            PRODUCT_NAME=Plex \
+            INFOPLIST_KEY_CFBundleDisplayName=Plex \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            DEVELOPMENT_TEAM="" \
+            ENABLE_APP_SANDBOX=NO \
+            REGISTER_APP_GROUPS=NO \
+            build
+
+      - name: Ad-hoc sign and package Plex.app
+        run: |
+          APP_PATH="build/DerivedData/Build/Products/Release/Plex.app"
+          ls -la "$APP_PATH"
+          codesign --force --deep --sign - --entitlements Strimr-macOS/Strimr-macOS.entitlements "$APP_PATH"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" build/Plex-macOS.zip
+          ls -lh build/Plex-macOS.zip
+
+      - name: Upload Plex.app Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Plex-macOS
+          path: build/Plex-macOS.zip
+          if-no-files-found: error
