@@ -1,4 +1,5 @@
 import AppKit
+import IOKit.pwr_mgt
 import SwiftUI
 
 struct PlayerWindowView: View {
@@ -61,6 +62,7 @@ struct PlayerView: View {
     @State private var viewModel: PlayerViewModel
     @State private var playerController = PlayerController()
     @State private var fullscreenCoordinator = PlayerFullscreenCoordinator()
+    @State private var displaySleepAssertion = DisplaySleepAssertion()
     @State private var controlsVisible = true
     @State private var hideControlsWorkItem: DispatchWorkItem?
     @State private var feedbackWorkItem: DispatchWorkItem?
@@ -317,6 +319,7 @@ struct PlayerView: View {
                     feedbackWorkItem?.cancel()
                     seekFeedbackWorkItem?.cancel()
                     fullscreenCoordinator.detach()
+                    displaySleepAssertion.setActive(false)
                     restoreCursor()
                     stopPlayback()
                     appModel.resetPlayer(ifPresenting: presentationID)
@@ -332,6 +335,9 @@ struct PlayerView: View {
             lifecycle
                 .onChange(of: viewModel.playbackURL) { _, url in
                     startPlaybackIfNeeded(url)
+                }
+                .onChange(of: playerController.isPaused, initial: true) { _, isPaused in
+                    displaySleepAssertion.setActive(!isPaused)
                 }
                 .onChange(of: playerController.isPaused) { _, isPaused in
                     viewModel.handlePlaybackState(isPaused: isPaused, isBuffering: playerController.isBuffering)
@@ -2210,5 +2216,37 @@ private enum PlayerSheet: String, Identifiable {
 
     var id: String {
         rawValue
+    }
+}
+
+/// Holds a macOS power assertion while video playback is active so screensaver and display sleep stay inhibited.
+private final class DisplaySleepAssertion {
+    private var assertionID: IOPMAssertionID = 0
+    private var isActive = false
+
+    func setActive(_ active: Bool) {
+        if active {
+            guard !isActive else { return }
+            let result = IOPMAssertionCreateWithName(
+                kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString,
+                IOPMAssertionLevel(kIOPMAssertionLevelOn),
+                "Plex video playback" as CFString,
+                &assertionID,
+            )
+            if result == kIOReturnSuccess {
+                isActive = true
+            }
+        } else {
+            guard isActive else { return }
+            IOPMAssertionRelease(assertionID)
+            assertionID = 0
+            isActive = false
+        }
+    }
+
+    deinit {
+        if isActive {
+            IOPMAssertionRelease(assertionID)
+        }
     }
 }
