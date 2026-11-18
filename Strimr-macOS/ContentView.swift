@@ -49,10 +49,11 @@ struct ContentView: View {
             offlineCoordinator.setCacheLimit(megabytes: megabytes)
         }
         .onChange(of: appModel.playerPresentation?.id) { _, presentationID in
-            guard presentationID != nil else { return }
+            guard let presentationID else { return }
             openWindow(id: AppModel.playerWindowID)
             for delay in [0.02, 0.1, 0.25] {
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    guard appModel.playerPresentation?.id == presentationID else { return }
                     NSApp.activate(ignoringOtherApps: true)
                     if let playerWin = NSApp.windows.first(where: {
                         $0.identifier?.rawValue == AppModel.playerWindowID

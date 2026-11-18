@@ -3,6 +3,7 @@ import SwiftUI
 
 struct PlayerWindowView: View {
     @Environment(AppModel.self) private var appModel
+    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         if let presentation = appModel.playerPresentation,
@@ -21,7 +22,20 @@ struct PlayerWindowView: View {
                 NSApp.activate(ignoringOtherApps: true)
             }
         } else {
-            ContentUnavailableView("player.window.title", systemImage: "play.rectangle")
+            Color.black
+                .ignoresSafeArea()
+                .background {
+                    PlayerWindowReader { window in
+                        if window.styleMask.contains(.fullScreen) {
+                            window.toggleFullScreen(nil)
+                        }
+                        window.orderOut(nil)
+                        window.close()
+                    }
+                }
+                .onAppear {
+                    dismissWindow(id: AppModel.playerWindowID)
+                }
         }
     }
 
@@ -1665,10 +1679,8 @@ struct PlayerView: View {
                 if isSharePlayPlayback {
                     sharePlayCoordinator.leave()
                     participatesInSharePlay = false
-                    closePlayer(force: true)
-                } else {
-                    playerController.pause()
                 }
+                closePlayer(force: true)
                 return
             }
 
@@ -1690,13 +1702,13 @@ struct PlayerView: View {
         guard !stopsForSleepTimer,
               isSharePlayPlayback || settingsManager.playback.nextEpisodeAutoplay.isEnabled
         else {
-            playerController.pause()
+            closePlayer(force: true)
             return
         }
 
         if viewModel.usesCommonPlaybackQueue {
             guard let nextViewModel = viewModel.makeNextPlayerViewModel() else {
-                playerController.pause()
+                closePlayer(force: true)
                 return
             }
             if isSharePlayPlayback, let next = nextViewModel.media {
@@ -1710,10 +1722,8 @@ struct PlayerView: View {
         if isSharePlayPlayback {
             sharePlayCoordinator.leave()
             participatesInSharePlay = false
-            closePlayer(force: true)
-        } else {
-            playerController.pause()
         }
+        closePlayer(force: true)
     }
 
     private func startPlayback(using nextViewModel: PlayerViewModel) async {
@@ -1951,8 +1961,9 @@ struct PlayerView: View {
         }
         restoreCursor()
         stopPlayback()
-        appModel.resetPlayer()
+        fullscreenCoordinator.closeWindow()
         dismissWindow(id: AppModel.playerWindowID)
+        appModel.resetPlayer()
     }
 
     private func startPlayback(for activity: StrimrWatchActivity) async {

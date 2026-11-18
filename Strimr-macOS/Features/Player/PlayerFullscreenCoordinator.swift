@@ -96,6 +96,24 @@ final class PlayerFullscreenCoordinator {
         }
     }
 
+    func closeWindow() {
+        let target = window ?? NSApp.windows.first(where: {
+            $0.identifier?.rawValue == AppModel.playerWindowID
+                || $0.title == String(localized: "player.window.title")
+        })
+        guard let target else { return }
+        if target.styleMask.contains(.fullScreen) {
+            target.toggleFullScreen(nil)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                target.orderOut(nil)
+                target.close()
+            }
+        } else {
+            target.orderOut(nil)
+            target.close()
+        }
+    }
+
     func detach() {
         let notificationCenter = NotificationCenter.default
         notificationObservers.forEach(notificationCenter.removeObserver)
