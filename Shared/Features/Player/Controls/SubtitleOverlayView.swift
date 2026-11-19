@@ -42,7 +42,7 @@ struct SubtitleOverlayView: View {
                 ASSRenderedSubtitles(
                     renderer: assRenderer,
                     margins: margins,
-                    useMargins: SubtitleGeometry.cropsPicture(margins),
+                    useMargins: SubtitleGeometry.cropsPicture(margins) || margins.bottom > 0.5,
                 )
                 .id(ObjectIdentifier(assRenderer))
             }
