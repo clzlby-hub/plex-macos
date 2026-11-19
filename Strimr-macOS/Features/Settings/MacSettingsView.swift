@@ -35,7 +35,7 @@ struct MacSettingsView: View {
 
         var systemImage: String {
             switch self {
-            case .interface: "paintbrush.fill"
+            case .interface: "macwindow"
             case .playback: "play.circle.fill"
             case .audio: "speaker.wave.2.fill"
             case .subtitles: "captions.bubble.fill"
