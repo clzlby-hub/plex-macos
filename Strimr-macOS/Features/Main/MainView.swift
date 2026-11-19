@@ -47,10 +47,6 @@ struct MainView: View {
                         }
                     }
                 }
-
-                Section {
-                    sidebarLabel("settings.title", systemImage: "gearshape.fill", item: .settings)
-                }
             }
             .navigationTitle("Plex")
             .listStyle(.sidebar)
