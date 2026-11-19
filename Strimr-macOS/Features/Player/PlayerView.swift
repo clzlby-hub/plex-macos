@@ -1543,8 +1543,8 @@ struct PlayerView: View {
         case (nil, true): "Atmos"
         case (nil, false): nil
         }
-        let langPart = track.language?.trimmingCharacters(in: .whitespacesAndNewlines)
-            .nilIfEmpty?.uppercased()
+        let trimmedLang = track.language?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let langPart = trimmedLang?.isEmpty == false ? trimmedLang?.uppercased() : nil
 
         switch (formatPart, langPart) {
         case let (format?, lang?): return "\(format) · \(lang)"
