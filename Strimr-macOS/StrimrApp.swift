@@ -116,7 +116,6 @@ struct StrimrApp: App {
 @MainActor
 private final class StrimrAppDelegate: NSObject, NSApplicationDelegate {
     private var windowCloseObserver: NSObjectProtocol?
-    private var playerOrderOutObserver: NSObjectProtocol?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         windowCloseObserver = NotificationCenter.default.addObserver(
@@ -127,15 +126,6 @@ private final class StrimrAppDelegate: NSObject, NSApplicationDelegate {
             guard let closingWindow = note.object as? NSWindow else { return }
             MainActor.assumeIsolated {
                 self?.handleWindowWillClose(closingWindow)
-            }
-        }
-        playerOrderOutObserver = NotificationCenter.default.addObserver(
-            forName: .strimrPlayerWindowDidOrderOut,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated {
-                self?.terminateIfNoVisibleWindows()
             }
         }
     }
@@ -151,10 +141,6 @@ private final class StrimrAppDelegate: NSObject, NSApplicationDelegate {
               closingWindow.identifier?.rawValue != AppModel.playerWindowID
         else { return }
 
-        terminateIfNoVisibleWindows(excluding: closingWindow)
-    }
-
-    private func terminateIfNoVisibleWindows(excluding closingWindow: NSWindow? = nil) {
         let hasOtherVisibleWindow = NSApp.windows.contains { window in
             window !== closingWindow
                 && window.isVisible

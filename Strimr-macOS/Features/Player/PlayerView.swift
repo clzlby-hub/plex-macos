@@ -1513,14 +1513,8 @@ struct PlayerView: View {
     private func configureController() {
         configureSleepTimer()
         playerController.onPictureInPictureRestoreRequested = {
-            if let playerWin = NSApp.windows.first(where: {
-                $0.identifier?.rawValue == AppModel.playerWindowID
-            }) {
-                fullscreenCoordinator.bringToFront(playerWin)
-            } else {
-                NSApp.activate(ignoringOtherApps: true)
-                openWindow(id: AppModel.playerWindowID)
-            }
+            NSApp.activate(ignoringOtherApps: true)
+            openWindow(id: AppModel.playerWindowID)
         }
         playerController.onLiveDemuxFailure = { error in
             fallBackToServerTranscode(after: error)

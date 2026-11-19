@@ -86,11 +86,9 @@ struct ContentView: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                             guard appModel.playerPresentation == nil else { return }
                             playerWin.orderOut(nil)
-                            NotificationCenter.default.post(name: .strimrPlayerWindowDidOrderOut, object: playerWin)
                         }
                     } else {
                         playerWin.orderOut(nil)
-                        NotificationCenter.default.post(name: .strimrPlayerWindowDidOrderOut, object: playerWin)
                     }
                 }
             }
