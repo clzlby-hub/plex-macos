@@ -52,52 +52,10 @@ struct ContentView: View {
             offlineCoordinator.setCacheLimit(megabytes: megabytes)
         }
         .onChange(of: appModel.playerPresentation?.id) { _, presentationID in
-            if let presentationID {
-                if let existingWin = NSApp.windows.first(where: {
-                    $0.identifier?.rawValue == AppModel.playerWindowID
-                }) {
-                    NSApp.activate(ignoringOtherApps: true)
-                    if existingWin.isMiniaturized {
-                        existingWin.deminiaturize(nil)
-                    }
-                    existingWin.makeKeyAndOrderFront(nil)
-                    existingWin.orderFrontRegardless()
-                } else {
-                    openWindow(id: AppModel.playerWindowID)
-                }
-                for delay in [0.05, 0.15] {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                        guard appModel.playerPresentation?.id == presentationID else { return }
-                        NSApp.activate(ignoringOtherApps: true)
-                        if let playerWin = NSApp.windows.first(where: {
-                            $0.identifier?.rawValue == AppModel.playerWindowID
-                        }) {
-                            if playerWin.isMiniaturized {
-                                playerWin.deminiaturize(nil)
-                            }
-                            playerWin.makeKeyAndOrderFront(nil)
-                            playerWin.orderFrontRegardless()
-                        }
-                    }
-                }
-            } else {
-                let playerWin = NSApp.windows.first(where: {
-                    $0.identifier?.rawValue == AppModel.playerWindowID
-                })
-                contentWinLog.notice("ContentView presentation=nil foundWin=\(playerWin != nil) visible=\(playerWin?.isVisible ?? false) fs=\(playerWin?.styleMask.contains(.fullScreen) ?? false) totalWins=\(NSApp.windows.count)")
-                if let playerWin {
-                    if playerWin.styleMask.contains(.fullScreen) {
-                        playerWin.toggleFullScreen(nil)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                            contentWinLog.notice("ContentView 0.4s after toggleFS presNil=\(appModel.playerPresentation == nil) stillFS=\(playerWin.styleMask.contains(.fullScreen)) visible=\(playerWin.isVisible)")
-                            guard appModel.playerPresentation == nil else { return }
-                            playerWin.orderOut(nil)
-                        }
-                    } else {
-                        playerWin.orderOut(nil)
-                        contentWinLog.notice("ContentView orderedOut visibleAfter=\(playerWin.isVisible)")
-                    }
-                }
+            guard let presentationID else { return }
+            if !appModel.playerWindowCoordinator.hasLiveWindow {
+                contentWinLog.notice("ContentView opening player window presID=\(presentationID.uuidString, privacy: .public)")
+                openWindow(id: AppModel.playerWindowID)
             }
         }
         .onChange(of: registry.connectedServices.map(ObjectIdentifier.init), initial: true) { _, _ in
