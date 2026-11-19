@@ -284,7 +284,7 @@ struct MainView: View {
                 ContentUnavailableView("library.empty.title", systemImage: "rectangle.stack.fill")
             }
         case .settings:
-            SettingsView()
+            MacSettingsView()
         }
     }
 

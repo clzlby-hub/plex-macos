@@ -90,11 +90,9 @@ struct StrimrApp: App {
 
         Settings {
             configured(
-                NavigationStack {
-                    SettingsView()
-                }
-                .frame(minWidth: 680, minHeight: 520)
-                .preferredColorScheme(.dark)
+                MacSettingsView()
+                    .frame(minWidth: 780, minHeight: 560)
+                    .preferredColorScheme(.dark)
             )
         }
     }
