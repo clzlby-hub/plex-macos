@@ -49,9 +49,48 @@ struct ContentView: View {
             offlineCoordinator.setCacheLimit(megabytes: megabytes)
         }
         .onChange(of: appModel.playerPresentation?.id) { _, presentationID in
-            guard presentationID != nil else { return }
-            if !appModel.playerWindowCoordinator.hasLiveWindow {
-                openWindow(id: AppModel.playerWindowID)
+            if let presentationID {
+                if let existingWin = NSApp.windows.first(where: {
+                    $0.identifier?.rawValue == AppModel.playerWindowID
+                }) {
+                    NSApp.activate(ignoringOtherApps: true)
+                    if existingWin.isMiniaturized {
+                        existingWin.deminiaturize(nil)
+                    }
+                    existingWin.makeKeyAndOrderFront(nil)
+                    existingWin.orderFrontRegardless()
+                } else {
+                    openWindow(id: AppModel.playerWindowID)
+                }
+                for delay in [0.05, 0.15] {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                        guard appModel.playerPresentation?.id == presentationID else { return }
+                        NSApp.activate(ignoringOtherApps: true)
+                        if let playerWin = NSApp.windows.first(where: {
+                            $0.identifier?.rawValue == AppModel.playerWindowID
+                        }) {
+                            if playerWin.isMiniaturized {
+                                playerWin.deminiaturize(nil)
+                            }
+                            playerWin.makeKeyAndOrderFront(nil)
+                            playerWin.orderFrontRegardless()
+                        }
+                    }
+                }
+            } else {
+                if let playerWin = NSApp.windows.first(where: {
+                    $0.identifier?.rawValue == AppModel.playerWindowID
+                }) {
+                    if playerWin.styleMask.contains(.fullScreen) {
+                        playerWin.toggleFullScreen(nil)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            guard appModel.playerPresentation == nil else { return }
+                            playerWin.orderOut(nil)
+                        }
+                    } else {
+                        playerWin.orderOut(nil)
+                    }
+                }
             }
         }
         .onChange(of: registry.connectedServices.map(ObjectIdentifier.init), initial: true) { _, _ in

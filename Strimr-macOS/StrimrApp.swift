@@ -138,7 +138,7 @@ private final class StrimrAppDelegate: NSObject, NSApplicationDelegate {
         guard !(closingWindow is NSPanel),
               closingWindow.sheetParent == nil,
               closingWindow.styleMask.contains(.titled),
-              !PlayerFullscreenCoordinator.isPlayerWindow(closingWindow)
+              closingWindow.identifier?.rawValue != AppModel.playerWindowID
         else { return }
 
         let hasOtherVisibleWindow = NSApp.windows.contains { window in

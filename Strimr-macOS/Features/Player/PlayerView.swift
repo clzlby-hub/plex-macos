@@ -6,25 +6,18 @@ struct PlayerWindowView: View {
     @Environment(AppModel.self) private var appModel
 
     var body: some View {
-        ZStack {
-            if let presentation = appModel.playerPresentation,
-               let viewModel = playerViewModel(for: presentation)
-            {
-                PlayerView(
-                    viewModel: viewModel,
-                    presentationID: presentation.id,
-                )
-                .environment(presentation.mediaServices)
-                .id(presentation.id)
-            } else {
-                Color.black
-                    .ignoresSafeArea()
-            }
-        }
-        .background {
-            PlayerWindowReader { window in
-                appModel.playerWindowCoordinator.attach(to: window)
-            }
+        if let presentation = appModel.playerPresentation,
+           let viewModel = playerViewModel(for: presentation)
+        {
+            PlayerView(
+                viewModel: viewModel,
+                presentationID: presentation.id,
+            )
+            .environment(presentation.mediaServices)
+            .id(presentation.id)
+        } else {
+            Color.black
+                .ignoresSafeArea()
         }
     }
 
@@ -68,6 +61,7 @@ struct PlayerView: View {
 
     @State private var viewModel: PlayerViewModel
     @State private var playerController = PlayerController()
+    @State private var fullscreenCoordinator = PlayerFullscreenCoordinator()
     @State private var displaySleepAssertion = DisplaySleepAssertion()
     @State private var controlsVisible = true
     @State private var hideControlsWorkItem: DispatchWorkItem?
@@ -122,10 +116,6 @@ struct PlayerView: View {
     private let presentationID: UUID
     private let controlsHideDelay: TimeInterval = 3
     private let seekFeedbackDelay: TimeInterval = 1.2
-
-    private var fullscreenCoordinator: PlayerFullscreenCoordinator {
-        appModel.playerWindowCoordinator
-    }
 
     init(viewModel: PlayerViewModel, presentationID: UUID) {
         _viewModel = State(initialValue: viewModel)
@@ -282,6 +272,13 @@ struct PlayerView: View {
                 .onEnded { toggleFullScreen() },
         )
         .background(.black)
+        .background {
+            PlayerWindowReader { window in
+                fullscreenCoordinator.attach(to: window) {
+                    closePlayer(force: true)
+                }
+            }
+        }
     }
 
     private var configuredPlayerView: some View {
@@ -289,11 +286,6 @@ struct PlayerView: View {
             playerScene
                 .onContinuousHover { phase in
                     handlePointerMovement(phase)
-                }
-                .onAppear {
-                    fullscreenCoordinator.setCloseHandler(for: presentationID) {
-                        closePlayer(force: true)
-                    }
                 }
                 .task {
                     configureController()
@@ -326,7 +318,7 @@ struct PlayerView: View {
                     hideControlsWorkItem?.cancel()
                     feedbackWorkItem?.cancel()
                     seekFeedbackWorkItem?.cancel()
-                    fullscreenCoordinator.clearCloseHandler(for: presentationID)
+                    fullscreenCoordinator.detach()
                     displaySleepAssertion.setActive(false)
                     restoreCursor()
                     stopPlayback()
@@ -1521,12 +1513,8 @@ struct PlayerView: View {
     private func configureController() {
         configureSleepTimer()
         playerController.onPictureInPictureRestoreRequested = {
-            if fullscreenCoordinator.hasLiveWindow {
-                fullscreenCoordinator.bringCurrentWindowToFront()
-            } else {
-                NSApp.activate(ignoringOtherApps: true)
-                openWindow(id: AppModel.playerWindowID)
-            }
+            NSApp.activate(ignoringOtherApps: true)
+            openWindow(id: AppModel.playerWindowID)
         }
         playerController.onLiveDemuxFailure = { error in
             fallBackToServerTranscode(after: error)
@@ -1962,6 +1950,7 @@ struct PlayerView: View {
         }
         restoreCursor()
         stopPlayback()
+        fullscreenCoordinator.hideWindow()
         appModel.resetPlayer()
     }
 
