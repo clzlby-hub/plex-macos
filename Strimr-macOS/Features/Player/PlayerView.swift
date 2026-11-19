@@ -94,6 +94,7 @@ struct PlayerView: View {
     @State private var shouldRestoreTracksAfterLoad = false
     @State private var playbackRate: Float = 1
     @State private var loadedURL: URL?
+    @State private var isDisappeared = false
     @State private var isShowingError = false
     @State private var errorMessage = ""
     @State private var sheetPresentation = IsolatedSheetPresentation<PlayerSheet>()
@@ -168,7 +169,7 @@ struct PlayerView: View {
                     TapGesture(count: 2)
                         .exclusively(
                             before: TapGesture()
-                                .onEnded { toggleControlsVisibility() },
+                                .onEnded { togglePlayPauseFromKeyboard() },
                         ),
                 )
                 .contextMenu {
@@ -316,6 +317,9 @@ struct PlayerView: View {
                     viewModel.liveRoutePreference = settingsManager.playback
                         .transcodeLiveTV ? .serverTranscode : .automatic
                     await viewModel.load(quality: settingsManager.playback.qualityPreset)
+                    guard !Task.isCancelled, !isDisappeared, appModel.playerPresentation?.id == presentationID else {
+                        return
+                    }
                     startPlaybackIfNeeded(viewModel.playbackURL)
                 }
                 .task(id: automaticSubtitleSearchKey) {
@@ -323,6 +327,7 @@ struct PlayerView: View {
                 }
                 .toast($automaticSubtitleToast)
                 .onDisappear {
+                    isDisappeared = true
                     playerViewLog.notice("PlayerView onDisappear presID=\(presentationID.uuidString, privacy: .public)")
                     nextEpisodePresentation.cancel()
                     sleepTimer.cancel()
@@ -1645,7 +1650,11 @@ struct PlayerView: View {
     }
 
     private func startPlaybackIfNeeded(_ url: URL?) {
-        guard let url, loadedURL != url else { return }
+        guard !isDisappeared,
+              appModel.playerPresentation?.id == presentationID,
+              let url,
+              loadedURL != url
+        else { return }
         loadedURL = url
         let isSharePlayPlayback = participatesInSharePlay && sharePlayCoordinator.isInSession
         let startPosition = isSharePlayPlayback
