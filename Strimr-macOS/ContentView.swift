@@ -49,62 +49,9 @@ struct ContentView: View {
             offlineCoordinator.setCacheLimit(megabytes: megabytes)
         }
         .onChange(of: appModel.playerPresentation?.id) { _, presentationID in
-            if let presentationID {
-                if let existingWin = NSApp.windows.first(where: {
-                    $0.identifier?.rawValue == AppModel.playerWindowID
-                }) {
-                    NSApp.activate(ignoringOtherApps: true)
-                    if existingWin.isMiniaturized {
-                        existingWin.deminiaturize(nil)
-                    }
-                    existingWin.makeKeyAndOrderFront(nil)
-                    existingWin.orderFrontRegardless()
-                } else {
-                    openWindow(id: AppModel.playerWindowID)
-                }
-                for delay in [0.05, 0.15] {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                        guard appModel.playerPresentation?.id == presentationID else { return }
-                        NSApp.activate(ignoringOtherApps: true)
-                        if let playerWin = NSApp.windows.first(where: {
-                            $0.identifier?.rawValue == AppModel.playerWindowID
-                        }) {
-                            if playerWin.isMiniaturized {
-                                playerWin.deminiaturize(nil)
-                            }
-                            playerWin.makeKeyAndOrderFront(nil)
-                            playerWin.orderFrontRegardless()
-                        }
-                    }
-                }
-            } else {
-                if let playerWin = NSApp.windows.first(where: {
-                    $0.identifier?.rawValue == AppModel.playerWindowID
-                }) {
-                    if playerWin.styleMask.contains(.fullScreen) {
-                        var token: NSObjectProtocol?
-                        token = NotificationCenter.default.addObserver(
-                            forName: NSWindow.didExitFullScreenNotification,
-                            object: playerWin,
-                            queue: .main
-                        ) { _ in
-                            if let token {
-                                NotificationCenter.default.removeObserver(token)
-                            }
-                            MainActor.assumeIsolated {
-                                guard appModel.playerPresentation == nil else { return }
-                                playerWin.orderOut(nil)
-                            }
-                        }
-                        playerWin.toggleFullScreen(nil)
-                    } else {
-                        playerWin.orderOut(nil)
-                        DispatchQueue.main.async {
-                            guard appModel.playerPresentation == nil else { return }
-                            playerWin.orderOut(nil)
-                        }
-                    }
-                }
+            guard presentationID != nil else { return }
+            if !appModel.playerWindowCoordinator.hasLiveWindow {
+                openWindow(id: AppModel.playerWindowID)
             }
         }
         .onChange(of: registry.connectedServices.map(ObjectIdentifier.init), initial: true) { _, _ in

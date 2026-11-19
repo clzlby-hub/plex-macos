@@ -138,11 +138,16 @@ final class AppModel: PlaybackPresenting {
 
     var playerPresentation: PlayerPresentation? {
         didSet {
-            if playerPresentation != nil {
+            if let presentation = playerPresentation {
                 pendingStartupSelection = nil
+                playerWindowCoordinator.prepareForPresentation(id: presentation.id)
+            } else if oldValue != nil {
+                playerWindowCoordinator.hideWindow()
             }
         }
     }
+
+    @ObservationIgnored let playerWindowCoordinator = PlayerFullscreenCoordinator()
 
     private var paths: [SidebarItem: NavigationPath] = [:] {
         didSet {
