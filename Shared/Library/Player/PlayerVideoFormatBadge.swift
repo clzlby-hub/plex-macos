@@ -22,4 +22,13 @@ enum PlayerVideoFormatBadge: String, Identifiable {
             String(localized: "player.badge.hlg")
         }
     }
+
+    var systemImage: String {
+        switch self {
+        case .dolbyVision:
+            "sparkles"
+        case .hdr10, .hdr10Plus, .hlg:
+            "sun.max.fill"
+        }
+    }
 }

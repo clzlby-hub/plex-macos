@@ -566,20 +566,19 @@ struct PlayerView: View {
                     titleButton(for: media)
                 }
                 Spacer()
+                if let resolutionBadgeTitle {
+                    PlayerBadge(resolutionBadgeTitle, systemImage: "tv")
+                }
                 if let badge = playerController.videoFormatBadge {
-                    PlayerBadge(badge.title)
+                    PlayerBadge(badge.title, systemImage: badge.systemImage)
+                }
+                if let audioBadgeTitle {
+                    PlayerBadge(audioBadgeTitle, systemImage: "speaker.wave.2.fill")
                 }
                 if participatesInSharePlay, sharePlayCoordinator.isInSession {
                     PlayerBadge(String(localized: "sharePlay.badge"))
                 }
                 SleepTimerBadge(sleepTimer: sleepTimer, mediaKind: viewModel.media?.type)
-                PlayerIconButton(
-                    systemName: "xmark",
-                    accessibilityLabel: String(localized: "common.actions.close"),
-                    size: .small,
-                ) {
-                    closePlayer()
-                }
             }
 
             Spacer()
@@ -1507,6 +1506,52 @@ struct PlayerView: View {
         }
         .frame(width: 0, height: 0)
         .opacity(0)
+    }
+
+    private var resolutionBadgeTitle: String? {
+        guard let size = playerController.sourceVideoSize else { return nil }
+        let width = max(size.width, size.height)
+        if width >= 3800 { return "4K" }
+        if width >= 1900 { return "1080p" }
+        if width >= 1260 { return "720p" }
+        if width > 0 { return "\(Int(min(size.width, size.height)))p" }
+        return nil
+    }
+
+    private var audioBadgeTitle: String? {
+        guard let track = audioTracks.first(where: { $0.id == selectedAudioTrackID })
+            ?? audioTracks.first(where: \.isSelected)
+        else { return nil }
+
+        let codecLabel: String? = track.codec.map { raw in
+            switch raw.lowercased() {
+            case "truehd": "TrueHD"
+            case "eac3": "DD+"
+            case "ac3": "DD"
+            case "dts": "DTS"
+            case "aac": "AAC"
+            case "flac": "FLAC"
+            case "opus": "Opus"
+            case "alac": "ALAC"
+            default: raw.uppercased()
+            }
+        }
+        let hasAtmos = track.title?.localizedCaseInsensitiveContains("atmos") == true
+        let formatPart: String? = switch (codecLabel, hasAtmos) {
+        case let (codec?, true): "\(codec) Atmos"
+        case let (codec?, false): codec
+        case (nil, true): "Atmos"
+        case (nil, false): nil
+        }
+        let langPart = track.language?.trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty?.uppercased()
+
+        switch (formatPart, langPart) {
+        case let (format?, lang?): return "\(format) · \(lang)"
+        case let (format?, nil): return format
+        case let (nil, lang?): return lang
+        case (nil, nil): return track.displayName
+        }
     }
 
     private var fullscreenAccessibilityLabel: String {
