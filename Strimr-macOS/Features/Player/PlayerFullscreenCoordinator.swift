@@ -13,6 +13,8 @@ final class PlayerFullscreenCoordinator: NSObject {
     @ObservationIgnored var onCloseButtonClicked: (() -> Void)?
 
     func attach(to window: NSWindow, onClose: (() -> Void)? = nil) {
+        window.identifier = NSUserInterfaceItemIdentifier(AppModel.playerWindowID)
+        window.isReleasedWhenClosed = false
         if let onClose {
             onCloseButtonClicked = onClose
         }

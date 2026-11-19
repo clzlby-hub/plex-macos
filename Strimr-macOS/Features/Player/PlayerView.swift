@@ -1950,7 +1950,6 @@ struct PlayerView: View {
         }
         restoreCursor()
         stopPlayback()
-        fullscreenCoordinator.hideWindow()
         appModel.resetPlayer()
     }
 

@@ -82,13 +82,27 @@ struct ContentView: View {
                     $0.identifier?.rawValue == AppModel.playerWindowID
                 }) {
                     if playerWin.styleMask.contains(.fullScreen) {
+                        var token: NSObjectProtocol?
+                        token = NotificationCenter.default.addObserver(
+                            forName: NSWindow.didExitFullScreenNotification,
+                            object: playerWin,
+                            queue: .main
+                        ) { _ in
+                            if let token {
+                                NotificationCenter.default.removeObserver(token)
+                            }
+                            MainActor.assumeIsolated {
+                                guard appModel.playerPresentation == nil else { return }
+                                playerWin.orderOut(nil)
+                            }
+                        }
                         playerWin.toggleFullScreen(nil)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    } else {
+                        playerWin.orderOut(nil)
+                        DispatchQueue.main.async {
                             guard appModel.playerPresentation == nil else { return }
                             playerWin.orderOut(nil)
                         }
-                    } else {
-                        playerWin.orderOut(nil)
                     }
                 }
             }
