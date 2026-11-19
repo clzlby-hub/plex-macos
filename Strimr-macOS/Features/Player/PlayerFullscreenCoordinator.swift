@@ -10,6 +10,8 @@ final class PlayerFullscreenCoordinator: NSObject {
 
     @ObservationIgnored private weak var window: NSWindow?
     @ObservationIgnored private var notificationObservers: [NSObjectProtocol] = []
+    @ObservationIgnored private var keyMonitor: Any?
+    @ObservationIgnored private var shouldOrderOutAfterFullScreenExit = false
     @ObservationIgnored var onCloseButtonClicked: (() -> Void)?
 
     func attach(to window: NSWindow, onClose: (() -> Void)? = nil) {
@@ -80,10 +82,30 @@ final class PlayerFullscreenCoordinator: NSObject {
                     self.isTransitioning = false
                     if let window = self.window {
                         self.configureWindowForFullScreen(window)
+                        if self.shouldOrderOutAfterFullScreenExit {
+                            self.shouldOrderOutAfterFullScreenExit = false
+                            window.orderOut(nil)
+                            NotificationCenter.default.post(name: .strimrPlayerWindowDidOrderOut, object: window)
+                        }
                     }
                 }
             },
         ]
+
+        if keyMonitor == nil {
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self,
+                      let targetWindow = self.window,
+                      event.window === targetWindow,
+                      event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+                      event.charactersIgnoringModifiers?.lowercased() == "w"
+                else {
+                    return event
+                }
+                self.handleWindowCloseButton(nil)
+                return nil
+            }
+        }
     }
 
     @objc private func handleWindowCloseButton(_ sender: Any?) {
@@ -122,14 +144,19 @@ final class PlayerFullscreenCoordinator: NSObject {
             $0.identifier?.rawValue == AppModel.playerWindowID
         })
         guard let target else { return }
-        DispatchQueue.main.async {
+        DispatchQueue.main.async { [weak self] in
             if target.styleMask.contains(.fullScreen) {
+                self?.shouldOrderOutAfterFullScreenExit = true
                 target.toggleFullScreen(nil)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                    guard let self, self.shouldOrderOutAfterFullScreenExit else { return }
+                    self.shouldOrderOutAfterFullScreenExit = false
                     target.orderOut(nil)
+                    NotificationCenter.default.post(name: .strimrPlayerWindowDidOrderOut, object: target)
                 }
             } else {
                 target.orderOut(nil)
+                NotificationCenter.default.post(name: .strimrPlayerWindowDidOrderOut, object: target)
             }
         }
     }
@@ -138,6 +165,11 @@ final class PlayerFullscreenCoordinator: NSObject {
         let notificationCenter = NotificationCenter.default
         notificationObservers.forEach(notificationCenter.removeObserver)
         notificationObservers.removeAll()
+        if let keyMonitor {
+            NSEvent.removeMonitor(keyMonitor)
+            self.keyMonitor = nil
+        }
+        shouldOrderOutAfterFullScreenExit = false
         window = nil
         isFullScreen = false
         isTransitioning = false
@@ -160,6 +192,10 @@ final class PlayerFullscreenCoordinator: NSObject {
         window.collectionBehavior.insert(.fullScreenPrimary)
         window.standardWindowButton(.zoomButton)?.isEnabled = true
     }
+}
+
+extension Notification.Name {
+    static let strimrPlayerWindowDidOrderOut = Notification.Name("StrimrPlayerWindowDidOrderOut")
 }
 
 struct PlayerWindowReader: NSViewRepresentable {
