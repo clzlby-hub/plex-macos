@@ -1,6 +1,9 @@
 import AppKit
 import Observation
+import os
 import SwiftUI
+
+private let playerWinLog = Logger(subsystem: "tv.plex.macos.custom", category: "PlayerWindow")
 
 @MainActor
 @Observable
@@ -13,6 +16,7 @@ final class PlayerFullscreenCoordinator: NSObject {
     @ObservationIgnored var onCloseButtonClicked: (() -> Void)?
 
     func attach(to window: NSWindow, onClose: (() -> Void)? = nil) {
+        playerWinLog.notice("attach window=\(ObjectIdentifier(window).debugDescription, privacy: .public) id=\(window.identifier?.rawValue ?? "nil", privacy: .public) visible=\(window.isVisible) fs=\(window.styleMask.contains(.fullScreen))")
         if let onClose {
             onCloseButtonClicked = onClose
         }
@@ -87,6 +91,7 @@ final class PlayerFullscreenCoordinator: NSObject {
     }
 
     @objc private func handleWindowCloseButton(_ sender: Any?) {
+        playerWinLog.notice("handleWindowCloseButton hasCallback=\(self.onCloseButtonClicked != nil)")
         if let onCloseButtonClicked {
             onCloseButtonClicked()
         } else {
@@ -121,15 +126,20 @@ final class PlayerFullscreenCoordinator: NSObject {
         let target = window ?? NSApp.windows.first(where: {
             $0.identifier?.rawValue == AppModel.playerWindowID
         })
+        playerWinLog.notice("hideWindow targetFound=\(target != nil) visible=\(target?.isVisible ?? false) fs=\(target?.styleMask.contains(.fullScreen) ?? false) totalWins=\(NSApp.windows.count)")
         guard let target else { return }
         DispatchQueue.main.async {
-            if target.styleMask.contains(.fullScreen) {
+            let isFS = target.styleMask.contains(.fullScreen)
+            playerWinLog.notice("hideWindow async executing isFS=\(isFS) visible=\(target.isVisible)")
+            if isFS {
                 target.toggleFullScreen(nil)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    playerWinLog.notice("hideWindow 0.4s after toggleFS -> orderOut, stillFS=\(target.styleMask.contains(.fullScreen)) visible=\(target.isVisible)")
                     target.orderOut(nil)
                 }
             } else {
                 target.orderOut(nil)
+                playerWinLog.notice("hideWindow orderedOut visibleAfter=\(target.isVisible)")
             }
         }
     }

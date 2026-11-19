@@ -1,6 +1,9 @@
 import AppKit
 import IOKit.pwr_mgt
+import os
 import SwiftUI
+
+private let playerViewLog = Logger(subsystem: "tv.plex.macos.custom", category: "PlayerWindow")
 
 struct PlayerWindowView: View {
     @Environment(AppModel.self) private var appModel
@@ -312,6 +315,7 @@ struct PlayerView: View {
                 }
                 .toast($automaticSubtitleToast)
                 .onDisappear {
+                    playerViewLog.notice("PlayerView onDisappear presID=\(presentationID.uuidString, privacy: .public)")
                     nextEpisodePresentation.cancel()
                     sleepTimer.cancel()
                     pauseScreen.cancel()
@@ -1943,6 +1947,7 @@ struct PlayerView: View {
     }
 
     private func closePlayer(force: Bool = false) {
+        playerViewLog.notice("closePlayer force=\(force) sharePlay=\(participatesInSharePlay && sharePlayCoordinator.isInSession)")
         hideControlsWorkItem?.cancel()
         if participatesInSharePlay, sharePlayCoordinator.isInSession, !force {
             isShowingSharePlayExitPrompt = true

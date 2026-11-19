@@ -1,4 +1,7 @@
+import os
 import SwiftUI
+
+private let contentWinLog = Logger(subsystem: "tv.plex.macos.custom", category: "PlayerWindow")
 
 struct ContentView: View {
     @Environment(\.openWindow) private var openWindow
@@ -78,17 +81,21 @@ struct ContentView: View {
                     }
                 }
             } else {
-                if let playerWin = NSApp.windows.first(where: {
+                let playerWin = NSApp.windows.first(where: {
                     $0.identifier?.rawValue == AppModel.playerWindowID
-                }) {
+                })
+                contentWinLog.notice("ContentView presentation=nil foundWin=\(playerWin != nil) visible=\(playerWin?.isVisible ?? false) fs=\(playerWin?.styleMask.contains(.fullScreen) ?? false) totalWins=\(NSApp.windows.count)")
+                if let playerWin {
                     if playerWin.styleMask.contains(.fullScreen) {
                         playerWin.toggleFullScreen(nil)
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            contentWinLog.notice("ContentView 0.4s after toggleFS presNil=\(appModel.playerPresentation == nil) stillFS=\(playerWin.styleMask.contains(.fullScreen)) visible=\(playerWin.isVisible)")
                             guard appModel.playerPresentation == nil else { return }
                             playerWin.orderOut(nil)
                         }
                     } else {
                         playerWin.orderOut(nil)
+                        contentWinLog.notice("ContentView orderedOut visibleAfter=\(playerWin.isVisible)")
                     }
                 }
             }
