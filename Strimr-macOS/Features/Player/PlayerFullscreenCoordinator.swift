@@ -24,6 +24,7 @@ final class PlayerFullscreenCoordinator: NSObject {
     @ObservationIgnored private weak var window: NSWindow?
     @ObservationIgnored private var notificationObservers: [NSObjectProtocol] = []
     @ObservationIgnored private var pendingHide = false
+    @ObservationIgnored private var isHiddenForPictureInPicture = false
     @ObservationIgnored private var activePresentationID: UUID?
     @ObservationIgnored private var hideDispatchWorkItem: DispatchWorkItem?
     @ObservationIgnored private var hideFallbackWorkItem: DispatchWorkItem?
@@ -103,6 +104,7 @@ final class PlayerFullscreenCoordinator: NSObject {
     func prepareForPresentation(id presentationID: UUID) {
         activePresentationID = presentationID
         pendingHide = false
+        isHiddenForPictureInPicture = false
         hideFallbackStage = 0
         cancelPendingHideWork()
 
@@ -134,9 +136,34 @@ final class PlayerFullscreenCoordinator: NSObject {
         target.toggleFullScreen(nil)
     }
 
+    func hideForPictureInPicture() {
+        guard !pendingHide, !isHiddenForPictureInPicture, let target = resolveWindow() else { return }
+        isHiddenForPictureInPicture = true
+
+        let needsFullScreenExit = target.styleMask.contains(.fullScreen)
+            || fullScreenPhase == .fullScreen
+            || fullScreenPhase == .entering
+
+        if needsFullScreenExit {
+            ensureFullScreenToggleAllowed(on: target)
+            NSApp.activate(ignoringOtherApps: true)
+            target.toggleFullScreen(nil)
+        } else if fullScreenPhase == .windowed {
+            orderOutWindow(target)
+        }
+    }
+
+    func restoreFromPictureInPicture() {
+        guard isHiddenForPictureInPicture else { return }
+        isHiddenForPictureInPicture = false
+        guard !pendingHide else { return }
+        bringCurrentWindowToFront()
+    }
+
     func hideWindow() {
         activePresentationID = nil
         pendingHide = true
+        isHiddenForPictureInPicture = false
         hideFallbackStage = 0
         cancelPendingHideWork()
 
@@ -175,6 +202,7 @@ final class PlayerFullscreenCoordinator: NSObject {
         isFullScreen = false
         isTransitioning = false
         pendingHide = false
+        isHiddenForPictureInPicture = false
         hideFallbackStage = 0
     }
 
@@ -304,6 +332,11 @@ final class PlayerFullscreenCoordinator: NSObject {
                         // teardown cleanly before removing the window from the desktop Space.
                         DispatchQueue.main.async { [weak self, weak window] in
                             guard let self, let window, self.activePresentationID == nil else { return }
+                            self.orderOutWindow(window)
+                        }
+                    } else if self.isHiddenForPictureInPicture {
+                        DispatchQueue.main.async { [weak self, weak window] in
+                            guard let self, let window, self.isHiddenForPictureInPicture, !self.pendingHide else { return }
                             self.orderOutWindow(window)
                         }
                     } else if let presentationID = self.activePresentationID {

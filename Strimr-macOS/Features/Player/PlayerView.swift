@@ -78,6 +78,7 @@ struct PlayerView: View {
     @State private var feedbackMessage: String?
     @State private var feedbackSystemImage: String?
     @State private var seekFeedback: SeekFeedback?
+    @State private var isHoveringTitle = false
     @State private var seekFeedbackWorkItem: DispatchWorkItem?
     @State private var isPointerInsidePlayer = false
     @State private var isScrubbing = false
@@ -159,7 +160,7 @@ struct PlayerView: View {
                 samplePreviewText: isShowingSubtitleAppearance ? subtitleAppearanceAvailability.samplePreviewText : nil,
             )
             .ignoresSafeArea()
-            .opacity(pauseScreen.isPresented ? 0 : 1)
+            .opacity(pauseScreen.isPresented || playerController.isPictureInPictureActive ? 0 : 1)
 
             LiveTVPlayerBackdrop(viewModel: viewModel, hidesBanner: isShowingLiveChannels || controlsVisible)
 
@@ -389,6 +390,13 @@ struct PlayerView: View {
                 }
                 .onChange(of: playerController.bufferedAhead) { _, bufferedAhead in
                     viewModel.handleBufferedAhead(bufferedAhead)
+                }
+                .onChange(of: playerController.isPictureInPictureActive) { _, isActive in
+                    if isActive {
+                        fullscreenCoordinator.hideForPictureInPicture()
+                    } else {
+                        fullscreenCoordinator.restoreFromPictureInPicture()
+                    }
                 },
         )
 
@@ -595,11 +603,7 @@ struct PlayerView: View {
                         Button {
                             playerController.seek(to: marker.endTime)
                         } label: {
-                            HStack(spacing: 10) {
-                                Text(marker.skipTitle)
-                                Image(systemName: "chevron.right")
-                                    .font(.footnote.weight(.bold))
-                            }
+                            Text(marker.skipTitle)
                         }
                         .actionButtonStyle(.primary)
                         .accessibilityLabel(marker.skipTitle)
@@ -1390,26 +1394,38 @@ struct PlayerView: View {
     }
 
     private func titleButton(for media: MediaItem) -> some View {
-        Button {
+        let showsHoverChrome = canShowInfo && (isHoveringTitle || isShowingInfoPopover)
+        return Button {
             toggleInfoPopover()
         } label: {
             VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Text(media.primaryLabel).font(.sectionTitle)
                     if canShowInfo {
                         Image(systemName: "chevron.down")
-                            .font(.caption.weight(.bold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(.textSecondary)
+                            .opacity(showsHoverChrome ? 1 : 0)
                     }
                 }
                 if let secondary = media.episodeTitleLabel ?? media.secondaryLabel {
                     Text(secondary).font(.facts).foregroundStyle(.textSecondary)
                 }
             }
-            .contentShape(Rectangle())
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(.white.opacity(showsHoverChrome ? 0.12 : 0)),
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .animation(.easeInOut(duration: 0.15), value: showsHoverChrome)
         }
         .buttonStyle(.plain)
         .disabled(!canShowInfo)
+        .onHover { isHovering in
+            isHoveringTitle = isHovering
+        }
         .help(Text("player.info.open"))
         .popover(isPresented: $isShowingInfoPopover, arrowEdge: .bottom) {
             ScrollView {
@@ -1576,7 +1592,7 @@ struct PlayerView: View {
         configureSleepTimer()
         playerController.onPictureInPictureRestoreRequested = {
             if fullscreenCoordinator.hasLiveWindow {
-                fullscreenCoordinator.bringCurrentWindowToFront()
+                fullscreenCoordinator.restoreFromPictureInPicture()
             } else {
                 NSApp.activate(ignoringOtherApps: true)
                 openWindow(id: AppModel.playerWindowID)
