@@ -26,5 +26,7 @@
 	<string>Strimr needs local network access to connect to your media server.</string>
 	<key>SENTRY_DSN_MACOS</key>
 	<string>https://$(SENTRY_DSN_MACOS)</string>
+	<key>UIDesignRequiresCompatibility</key>
+	<true/>
 </dict>
 </plist>
