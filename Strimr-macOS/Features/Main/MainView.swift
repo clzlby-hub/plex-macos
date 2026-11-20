@@ -150,15 +150,8 @@ struct MainView: View {
         Button {
             isShowingProfilePopover.toggle()
         } label: {
-            HStack(spacing: 6) {
-                profileAvatarView(size: 26)
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 4)
-            .padding(.vertical, 2)
-            .contentShape(Capsule())
+            profileAvatarView(size: 28)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .popover(isPresented: $isShowingProfilePopover, arrowEdge: .bottom) {
