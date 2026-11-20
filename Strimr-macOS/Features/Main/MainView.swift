@@ -62,9 +62,7 @@ struct MainView: View {
             .offlineBanner()
             .animation(.easeInOut, value: offlineCoordinator.banner)
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    profileMenu
-                }
+                profileToolbarItem
             }
         }
         .mediaCardActions(registry: registry, presenter: appModel, showMedia: appModel.showMedia)
@@ -144,6 +142,20 @@ struct MainView: View {
         item: AppModel.SidebarItem,
     ) -> some View {
         Label(title, systemImage: systemImage).tag(item)
+    }
+
+    @ToolbarContentBuilder
+    private var profileToolbarItem: some ToolbarContent {
+        if #available(macOS 26.0, *) {
+            ToolbarItem(placement: .primaryAction) {
+                profileMenu
+            }
+            .sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: .primaryAction) {
+                profileMenu
+            }
+        }
     }
 
     private var profileMenu: some View {
