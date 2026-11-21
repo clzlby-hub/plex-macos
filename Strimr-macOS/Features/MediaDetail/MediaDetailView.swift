@@ -20,6 +20,7 @@ struct MediaDetailView: View {
     @State private var isMoreMenuHovered = false
     @State private var mediaToAddToPlaylist: MediaItem?
     @State private var manageController = MediaManageController()
+    @AppStorage("mediaDetailEpisodeLayout") private var episodeLayout: EpisodeListLayout = .list
     let onSelectMedia: (MediaItem) -> Void
     let onSelectParentSeries: (PlayableMediaItem) -> Void
     let onSelectPerson: (Person) -> Void
@@ -636,12 +637,33 @@ struct MediaDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Divider()
 
-            MediaHubSection(
-                title: String(localized: "media.detail.episodes.title"),
-                subtitle: viewModel.episodes.isEmpty
-                    ? nil
-                    : String(localized: "media.labels.countEpisode \(viewModel.episodes.count)"),
-            ) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "media.detail.episodes.title"))
+                            .font(.sectionTitle)
+                        if !viewModel.episodes.isEmpty {
+                            Text(String(localized: "media.labels.countEpisode \(viewModel.episodes.count)"))
+                                .font(.cardMetadata)
+                                .foregroundStyle(.textTertiary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Picker("", selection: $episodeLayout) {
+                        Image(systemName: "list.bullet")
+                            .accessibilityLabel("纵向排列")
+                            .tag(EpisodeListLayout.list)
+                        Image(systemName: "rectangle.split.3x1")
+                            .accessibilityLabel("横向排列")
+                            .tag(EpisodeListLayout.horizontal)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .fixedSize()
+                }
+
                 VStack(alignment: .leading, spacing: 12) {
                     if viewModel.media.type == .show {
                         SeasonPillsRow(viewModel: viewModel) { onSelectMedia($0) }
@@ -667,6 +689,16 @@ struct MediaDetailView: View {
             Text("media.detail.noEpisodes")
                 .font(.facts)
                 .foregroundStyle(.textSecondary)
+        } else if episodeLayout == .horizontal {
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: 14) {
+                    ForEach(viewModel.episodes) { episode in
+                        episodeCard(episode)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .mouseDragScrolling()
         } else {
             LazyVStack(spacing: 8) {
                 ForEach(viewModel.episodes) { episode in
@@ -674,6 +706,55 @@ struct MediaDetailView: View {
                 }
             }
         }
+    }
+
+    private func playEpisode(_ episode: MediaItem) {
+        if isServerUnreachable {
+            if let request = downloadManager.localPlaybackRequest(for: episode.identity, kind: .episode) {
+                appModel.showLocalPlayer(request)
+            }
+        } else {
+            onPlay(episode.id, episode.type, false, true)
+        }
+    }
+
+    private func episodeCard(_ episode: MediaItem) -> some View {
+        Button {
+            onSelectMedia(episode)
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                EpisodeArtworkView(
+                    episode: episode,
+                    artworkPath: viewModel.artworkPath(
+                        for: episode,
+                        spoilerProtection: settingsManager.interface.spoilerProtection,
+                    ),
+                    width: 260,
+                    progress: viewModel.progressFraction(for: episode),
+                )
+                .overlay(alignment: .bottomTrailing) {
+                    Button {
+                        playEpisode(episode)
+                    } label: {
+                        Image(systemName: "play.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .background(.black.opacity(0.65), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isServerUnreachable && downloadManager.completedOwnedItem(for: episode.identity) == nil)
+                    .padding(10)
+                }
+
+                EpisodeRowText(episode: episode, runtime: viewModel.runtimeText(for: episode), summaryLineLimit: 2)
+                    .frame(width: 260, alignment: .leading)
+            }
+            .padding(10)
+            .modifier(EpisodeRowBackground())
+        }
+        .buttonStyle(.plain)
+        .dimmedWhenUnavailableOffline(episode)
     }
 
     private func episodeRow(_ episode: MediaItem) -> some View {
@@ -695,13 +776,7 @@ struct MediaDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 Button {
-                    if isServerUnreachable {
-                        if let request = downloadManager.localPlaybackRequest(for: episode.identity, kind: .episode) {
-                            appModel.showLocalPlayer(request)
-                        }
-                    } else {
-                        onPlay(episode.id, episode.type, false, true)
-                    }
+                    playEpisode(episode)
                 } label: {
                     Label("common.actions.play", systemImage: "play.fill")
                 }
@@ -714,6 +789,11 @@ struct MediaDetailView: View {
         .buttonStyle(.plain)
         .dimmedWhenUnavailableOffline(episode)
     }
+}
+
+private enum EpisodeListLayout: String, CaseIterable {
+    case list
+    case horizontal
 }
 
 private struct EpisodeRowBackground: ViewModifier {
