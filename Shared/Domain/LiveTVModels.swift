@@ -57,13 +57,18 @@ enum LiveTVErrorReporting {
         case .missingConnection: 1004
         case .unreachableServer: 1005
         case let .requestFailed(statusCode): statusCode
+        case let .serverError(statusCode, _): statusCode
         case .decodingFailed: 1006
         }
     }
 
     private static func plexStatusCode(for error: PlexAPIError) -> Int? {
-        guard case let .requestFailed(statusCode) = error else { return nil }
-        return statusCode
+        switch error {
+        case let .requestFailed(statusCode), let .serverError(statusCode, _):
+            statusCode
+        default:
+            nil
+        }
     }
 
     private static func jellyfinCode(for error: JellyfinAPIError) -> Int {
