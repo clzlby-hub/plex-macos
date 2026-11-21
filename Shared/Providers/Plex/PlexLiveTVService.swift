@@ -306,7 +306,7 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
         let subscriptions = templates.flatMap { dictionaries($0["MediaSubscription"]) }
         let selected = subscriptions.first(where: { bool($0["selected"]) == true }) ?? subscriptions.first
         let singleSubscription = subscriptions.first(where: { [1, 4].contains(int($0["type"]) ?? -1) })
-            ?? (subscriptions.count == 1 && int($0["type"]) != 2 ? subscriptions[0] : nil)
+            ?? (subscriptions.count == 1 && int(subscriptions[0]["type"]) != 2 ? subscriptions[0] : nil)
         let seriesSubscription = subscriptions.first(where: { int($0["type"]) == 2 })
         let libraries = try await PlexMediaServiceAdapter(
             context: context,
