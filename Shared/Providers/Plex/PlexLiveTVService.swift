@@ -305,32 +305,35 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
         let templates = dictionaries(container["SubscriptionTemplate"])
         let subscriptions = templates.flatMap { dictionaries($0["MediaSubscription"]) }
         let selected = subscriptions.first(where: { bool($0["selected"]) == true }) ?? subscriptions.first
-        let singleSubscription = subscriptions.first(where: { int($0["type"]) == 4 })
-            ?? (subscriptions.count == 1 && int(subscriptions[0]["type"]) == nil ? subscriptions[0] : nil)
+        let singleSubscription = subscriptions.first(where: { [1, 4].contains(int($0["type"]) ?? -1) })
+            ?? (subscriptions.count == 1 && int($0["type"]) != 2 ? subscriptions[0] : nil)
         let seriesSubscription = subscriptions.first(where: { int($0["type"]) == 2 })
         let libraries = try await PlexMediaServiceAdapter(
             context: context,
             server: context.serverAccessSnapshot().serverIdentity,
         ).libraries()
             .filter { $0.type == .movie || $0.type == .series }
+        let fallbackMovieLibraryID = libraries.first(where: { $0.type == .movie })?.id ?? libraries.first?.id
+        let fallbackSeriesLibraryID = libraries.first(where: { $0.type == .series })?.id ?? libraries.first?.id
         return DVRRecordingTemplate(
             programID: program.id,
             single: singleSubscription.map { subscription in
-                DVRRecordingModeTemplate(
+                let fallbackLibraryID = int(subscription["type"]) == 1 ? fallbackMovieLibraryID : (fallbackSeriesLibraryID ?? fallbackMovieLibraryID)
+                return DVRRecordingModeTemplate(
                     options: recordingOptions(from: dictionaries(subscription["Setting"])),
-                    defaultLibraryID: string(subscription["targetLibrarySectionID"]),
+                    defaultLibraryID: string(subscription["targetLibrarySectionID"]) ?? fallbackLibraryID,
                 )
             },
             series: seriesSubscription.map { subscription in
                 DVRRecordingModeTemplate(
                     options: recordingOptions(from: dictionaries(subscription["Setting"])),
-                    defaultLibraryID: string(subscription["targetLibrarySectionID"]),
+                    defaultLibraryID: string(subscription["targetLibrarySectionID"]) ?? fallbackSeriesLibraryID,
                 )
             },
             preferredMode: selected.flatMap { subscription in
                 switch int(subscription["type"]) {
                 case 2: .series
-                case 4: .single
+                case 1, 4: .single
                 default: nil
                 }
             } ?? (singleSubscription != nil ? .single : seriesSubscription != nil ? .series : nil),
@@ -378,7 +381,13 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
         let container = mediaContainer(root) ?? [:]
         let entries = dictionaries(container["SubscriptionTemplate"]).flatMap { dictionaries($0["MediaSubscription"]) }
         let desiredType = request.recordsSeries ? 2 : 4
-        let entry = entries.first(where: { int($0["type"]) == desiredType }) ?? entries.first
+        let entry: [String: Any]? = if request.recordsSeries {
+            entries.first(where: { int($0["type"]) == 2 }) ?? entries.first
+        } else {
+            entries.first(where: { [4, 1].contains(int($0["type"]) ?? -1) })
+                ?? entries.first(where: { int($0["type"]) != 2 })
+                ?? entries.first
+        }
         guard let entry else { throw PlexAPIError.invalidResponse }
         var query: [URLQueryItem] = []
         if let parameters = string(entry["parameters"]),
@@ -386,15 +395,20 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
         {
             query.append(contentsOf: components.queryItems ?? [])
         }
-        if let library = request.targetLibraryID {
-            query.append(URLQueryItem(
-                name: "targetLibrarySectionID",
-                value: library,
-            ))
+        let resolvedType = int(entry["type"]) ?? desiredType
+        upsertQueryItem(&query, name: "type", value: String(resolvedType))
+        if let library = request.targetLibraryID ?? string(entry["targetLibrarySectionID"]) {
+            upsertQueryItem(&query, name: "targetLibrarySectionID", value: library)
         }
-        query.append(URLQueryItem(name: "type", value: String(desiredType)))
-        query.append(contentsOf: request.options.map { URLQueryItem(name: "prefs[\($0.key)]", value: $0.value) })
+        for (key, value) in request.options {
+            upsertQueryItem(&query, name: "prefs[\(key)]", value: value)
+        }
         _ = try await network.json(path: "/media/subscriptions", queryItems: query, method: "POST")
+    }
+
+    private func upsertQueryItem(_ items: inout [URLQueryItem], name: String, value: String) {
+        items.removeAll { $0.name == name }
+        items.append(URLQueryItem(name: name, value: value))
     }
 
     func update(rule: DVRRecordingRule, options: [String: String]) async throws {

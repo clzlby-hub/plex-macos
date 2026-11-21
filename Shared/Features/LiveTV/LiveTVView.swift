@@ -41,6 +41,7 @@ struct LiveTVView: View {
     @State private var guideScrollRequest: LiveTVGuideScrollRequest?
     @State private var scheduleChannel: LiveTVChannel?
     @State private var pendingSearchSelection: SearchSelection?
+    @State private var recordingErrorMessage: String?
 
     private var sections: [LiveTVSection] {
         store.dvr == nil ? [.onNow, .guide] : LiveTVSection.allCases
@@ -159,6 +160,21 @@ struct LiveTVView: View {
             )
             .environment(services)
         }
+        .alert(
+            "livetv.recording.error",
+            isPresented: Binding(
+                get: { recordingErrorMessage != nil },
+                set: { if !$0 { recordingErrorMessage = nil } },
+            ),
+        ) {
+            Button("common.done", role: .cancel) {
+                recordingErrorMessage = nil
+            }
+        } message: {
+            if let recordingErrorMessage {
+                Text(recordingErrorMessage)
+            }
+        }
         .taskPresentation(isPresented: $isSearching, onDismiss: openPendingSearchSelection) {
             LiveTVGuideSearchView(
                 store: store,
@@ -238,6 +254,7 @@ struct LiveTVView: View {
                         try await store.record(program, series: false)
                     } catch {
                         guard !Task.isCancelled, !error.isCancellation else { return }
+                        recordingErrorMessage = error.localizedDescription
                         if (error as? JellyfinAPIError) != .recordingConflict {
                             LiveTVErrorReporting.capture(error)
                         }
