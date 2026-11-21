@@ -7,6 +7,7 @@ enum PlexAPIError: Error {
     case missingConnection
     case unreachableServer
     case requestFailed(statusCode: Int)
+    case serverError(statusCode: Int, message: String)
     case decodingFailed(Error)
 }
 
@@ -26,6 +27,7 @@ extension PlexAPIError: LocalizedError {
         case .missingConnection: "未连接到服务器"
         case .unreachableServer: "无法连接到服务器"
         case let .requestFailed(statusCode): "服务器请求失败 (HTTP \(statusCode))"
+        case let .serverError(statusCode, message): "服务器请求失败 (HTTP \(statusCode))：\(message)"
         case let .decodingFailed(error): "数据解析失败：\(error.localizedDescription)"
         }
     }

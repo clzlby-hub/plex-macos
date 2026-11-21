@@ -46,6 +46,15 @@ final class PlexServerNetworkClient {
             throw PlexAPIError.requestFailed(statusCode: -1)
         }
         guard 200 ..< 300 ~= httpResponse.statusCode else {
+            if let body = String(data: result.data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                !body.isEmpty
+            {
+                throw PlexAPIError.serverError(
+                    statusCode: httpResponse.statusCode,
+                    message: String(body.prefix(240)),
+                )
+            }
             throw PlexAPIError.requestFailed(statusCode: httpResponse.statusCode)
         }
 
@@ -94,6 +103,15 @@ final class PlexServerNetworkClient {
             throw PlexAPIError.requestFailed(statusCode: -1)
         }
         guard 200 ..< 300 ~= httpResponse.statusCode else {
+            if let body = String(data: result.data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                !body.isEmpty
+            {
+                throw PlexAPIError.serverError(
+                    statusCode: httpResponse.statusCode,
+                    message: String(body.prefix(240)),
+                )
+            }
             throw PlexAPIError.requestFailed(statusCode: httpResponse.statusCode)
         }
     }

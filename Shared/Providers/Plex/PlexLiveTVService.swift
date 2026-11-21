@@ -400,10 +400,15 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
         if let library = request.targetLibraryID ?? string(entry["targetLibrarySectionID"]) {
             upsertQueryItem(&query, name: "targetLibrarySectionID", value: library)
         }
-        for (key, value) in request.options {
+        for (key, value) in request.options where !value.isEmpty {
             upsertQueryItem(&query, name: "prefs[\(key)]", value: value)
         }
-        try await network.send(path: "/media/subscriptions", queryItems: query, method: "POST")
+        try await network.send(
+            path: "/media/subscriptions",
+            queryItems: query,
+            method: "POST",
+            encodesPlusSign: true,
+        )
     }
 
     private func upsertQueryItem(_ items: inout [URLQueryItem], name: String, value: String) {
