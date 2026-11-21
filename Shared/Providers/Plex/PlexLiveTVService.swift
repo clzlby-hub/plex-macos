@@ -389,36 +389,40 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
                 ?? entries.first
         }
         guard let entry else { throw PlexAPIError.invalidResponse }
-        var query: [URLQueryItem] = []
-        if let parameters = string(entry["parameters"]),
-           let components = URLComponents(string: "https://localhost/?\(parameters)")
-        {
-            query.append(contentsOf: components.queryItems ?? [])
-        }
         let resolvedType = int(entry["type"]) ?? desiredType
-        upsertQueryItem(&query, name: "type", value: String(resolvedType))
-        if let library = request.targetLibraryID ?? string(entry["targetLibrarySectionID"]) {
-            upsertQueryItem(&query, name: "targetLibrarySectionID", value: library)
+        let library = request.targetLibraryID ?? string(entry["targetLibrarySectionID"])
+
+        var queryParts: [String] = []
+        let rawParameters = string(entry["parameters"]) ?? ""
+        if !rawParameters.isEmpty {
+            queryParts.append(rawParameters)
+        }
+        let existingKeys = Set(
+            rawParameters
+                .split(separator: "&")
+                .compactMap { $0.split(separator: "=", maxSplits: 1).first.map(String.init) },
+        )
+        if !existingKeys.contains("type") {
+            queryParts.append("type=\(resolvedType)")
+        }
+        if let library, !library.isEmpty, !existingKeys.contains("targetLibrarySectionID") {
+            let encodedLib = library.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? library
+            queryParts.append("targetLibrarySectionID=\(encodedLib)")
         }
         for (key, value) in request.options where !value.isEmpty {
-            upsertQueryItem(&query, name: "prefs[\(key)]", value: value)
+            let prefKey = "prefs[\(key)]"
+            let encodedPrefKey = prefKey.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? prefKey
+            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+            if !existingKeys.contains(encodedPrefKey), !existingKeys.contains(prefKey) {
+                queryParts.append("\(encodedPrefKey)=\(encodedValue)")
+            }
         }
-        do {
-            try await network.send(
-                path: "/media/subscriptions",
-                queryItems: query,
-                method: "POST",
-                encodesPlusSign: true,
-            )
-        } catch let PlexAPIError.serverError(statusCode, message) {
-            let debugInfo = "guid=\(guid) type=\(resolvedType) lib=\(request.targetLibraryID ?? "nil") params=\(string(entry["parameters"]) ?? "nil")"
-            throw PlexAPIError.serverError(statusCode: statusCode, message: "\(message)\n\(debugInfo)")
-        }
-    }
-
-    private func upsertQueryItem(_ items: inout [URLQueryItem], name: String, value: String) {
-        items.removeAll { $0.name == name }
-        items.append(URLQueryItem(name: name, value: value))
+        let rawQuery = queryParts.joined(separator: "&")
+        try await network.send(
+            path: "/media/subscriptions",
+            method: "POST",
+            percentEncodedQuery: rawQuery,
+        )
     }
 
     func update(rule: DVRRecordingRule, options: [String: String]) async throws {
