@@ -314,7 +314,7 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
     }
 
     func completedRecordings() async throws -> [DVRRecording] {
-        let sectionRepository = SectionRepository(context: context)
+        let sectionRepository = try SectionRepository(context: context)
         let sections = try await sectionRepository.getSections().mediaContainer.directory ?? []
         let targetSections = sections.filter {
             ($0.type == .movie || $0.type == .show) && Int($0.key) != nil
@@ -368,7 +368,7 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
             return true
         }
         return item.media?.contains { media in
-            media.parts?.contains { ($0.file ?? "").lowercased().hasSuffix(".ts") } == true
+            media.parts.contains { ($0.file ?? "").lowercased().hasSuffix(".ts") }
         } == true
     }
 
