@@ -28,17 +28,8 @@ struct SettingsInterfaceView: View {
                         Text(action.title).tag(action)
                     }
                 }
-                Toggle(
-                    "settings.interface.mergeNextUp",
-                    isOn: Binding(
-                        get: { settingsManager.interface.mergesNextUpIntoContinueWatching },
-                        set: { settingsManager.setMergesNextUpIntoContinueWatching($0) },
-                    ),
-                )
             } header: {
                 Text("settings.interface.homeRows.section")
-            } footer: {
-                Text("settings.interface.mergeNextUp.footer")
             }
 
             Section {
