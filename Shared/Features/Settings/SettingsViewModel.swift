@@ -9,7 +9,7 @@ final class SettingsViewModel {
     let seekOptions = [5, 10, 15, 30, 45, 60]
     let nextEpisodeAutoplayOptions = NextEpisodeAutoplay.allCases
     let defaultSleepTimerOptions = SleepTimerMode.defaultOptions
-    #if os(tvOS)
+    #if os(tvOS) || os(macOS)
         let subtitleFontSizeOptions = Array(stride(from: 12, through: 80, by: 2))
     #else
         let subtitleFontSizeOptions = Array(stride(from: 12, through: 40, by: 2))
