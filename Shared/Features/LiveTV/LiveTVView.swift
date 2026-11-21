@@ -347,7 +347,7 @@ struct LiveTVView: View {
 
     private func playInProgressRecording(_ recording: DVRRecording, program: LiveTVProgram?) {
         if let program {
-            tune(program, fromStart: store.dvr?.supportsServerCaptureBuffer == true)
+            tune(program, fromStart: store.service.supportsServerCaptureBuffer)
             return
         }
         guard let channelTitle = recording.channelTitle,
