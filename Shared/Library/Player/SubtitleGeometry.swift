@@ -2,7 +2,11 @@ import CoreGraphics
 import SwiftAssRenderer
 
 enum SubtitleGeometry {
-    static let defaultTextBottomInset: CGFloat = 48
+    #if os(macOS)
+        static let defaultTextBottomInset: CGFloat = 68
+    #else
+        static let defaultTextBottomInset: CGFloat = 48
+    #endif
 
     /// Bottom inset of text subtitles, kept above the visible controls.
     static func textBottomInset(

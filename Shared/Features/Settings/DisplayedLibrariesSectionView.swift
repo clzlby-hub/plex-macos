@@ -115,6 +115,43 @@ struct LibraryOrderRow: View {
                 .opacity(canReorder ? 1 : 0)
                 .accessibilityHidden(!canReorder)
             }
+        #elseif os(macOS)
+            HStack(spacing: 12) {
+                LibrarySettingsLabel(title: title, subtitle: subtitle)
+                    .foregroundStyle(isOn.wrappedValue ? .primary : .secondary)
+
+                Spacer(minLength: 16)
+
+                // Hidden rather than removed so every switch stays aligned.
+                Group {
+                    Button {
+                        move(-1)
+                    } label: {
+                        Image(systemName: "arrow.up")
+                    }
+                    .accessibilityLabel(Text("settings.interface.homeRows.moveUp"))
+                    .disabled(!canMoveUp)
+
+                    Button {
+                        move(1)
+                    } label: {
+                        Image(systemName: "arrow.down")
+                    }
+                    .accessibilityLabel(Text("settings.interface.homeRows.moveDown"))
+                    .disabled(!canMoveDown)
+                }
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .opacity(canReorder ? 1 : 0)
+                .disabled(!canReorder)
+                .accessibilityHidden(!canReorder)
+
+                Toggle("", isOn: isOn)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+            }
+            .id(key)
         #else
             HStack(spacing: 12) {
                 Toggle(isOn: isOn) {

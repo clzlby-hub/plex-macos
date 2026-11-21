@@ -70,6 +70,18 @@ struct HomeRowsSettingsView: View {
                 Text(source.title)
             }
             .settingsFocus("homeHero", isDefault: true)
+        #elseif os(macOS)
+            HStack(spacing: 12) {
+                Text("settings.interface.homeHero")
+                Spacer(minLength: 16)
+                Picker("", selection: heroSelection) {
+                    ForEach(HomeHeroSource.allCases.filter { $0 != .discover }, id: \.self) { source in
+                        Text(source.title).tag(source)
+                    }
+                }
+                .labelsHidden()
+                .fixedSize()
+            }
         #else
             Picker("settings.interface.homeHero", selection: heroSelection) {
                 ForEach(HomeHeroSource.allCases.filter { $0 != .discover }, id: \.self) { source in
@@ -182,6 +194,43 @@ struct HomeRowsSettingsView: View {
                 }
                 .fixedSize()
             }
+        #elseif os(macOS)
+            HStack(spacing: 12) {
+                rowLabel(row)
+
+                Spacer(minLength: 16)
+
+                Group {
+                    styleMenu(for: row)
+
+                    Button {
+                        viewModel.moveRow(at: index, by: -1)
+                    } label: {
+                        Image(systemName: "arrow.up")
+                    }
+                    .foregroundStyle(index == 0 ? .tertiary : .secondary)
+                    .accessibilityLabel(Text("settings.interface.homeRows.moveUp"))
+                    .disabled(index == 0)
+
+                    Button {
+                        viewModel.moveRow(at: index, by: 1)
+                    } label: {
+                        Image(systemName: "arrow.down")
+                    }
+                    .foregroundStyle(index == count - 1 ? .tertiary : .secondary)
+                    .accessibilityLabel(Text("settings.interface.homeRows.moveDown"))
+                    .disabled(index == count - 1)
+                }
+                .buttonStyle(.borderless)
+
+                Toggle("", isOn: Binding(
+                    get: { true },
+                    set: { viewModel.setRowVisible(row.id, visible: $0) },
+                ))
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.small)
+            }
         #else
             HStack(spacing: 12) {
                 Toggle(isOn: Binding(
@@ -229,10 +278,17 @@ struct HomeRowsSettingsView: View {
                 if !hiddenRows.isEmpty {
                     Section {
                         ForEach(hiddenRows) { row in
-                            Toggle(row.title, isOn: Binding(
-                                get: { false },
-                                set: { viewModel.setRowVisible(row.id, visible: $0) },
-                            ))
+                            HStack(spacing: 12) {
+                                Text(row.title)
+                                Spacer(minLength: 16)
+                                Toggle("", isOn: Binding(
+                                    get: { false },
+                                    set: { viewModel.setRowVisible(row.id, visible: $0) },
+                                ))
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .controlSize(.small)
+                            }
                         }
                     } header: {
                         HomeRowGroupTitle.text(for: group)

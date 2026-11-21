@@ -40,7 +40,7 @@ struct MacSettingsView: View {
         var systemImage: String {
             switch self {
             case .interface: "macwindow"
-            case .homeRows: "rectangle.3.group.fill"
+            case .homeRows: "square.grid.2x2.fill"
             case .manageLibraries: "rectangle.stack.fill"
             case .playback: "play.circle.fill"
             case .audio: "speaker.wave.2.fill"
