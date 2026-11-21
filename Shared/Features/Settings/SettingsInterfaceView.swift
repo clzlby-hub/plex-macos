@@ -9,12 +9,14 @@ struct SettingsInterfaceView: View {
     var body: some View {
         List {
             Section {
-                NavigationLink("settings.interface.homeRows.title") {
-                    HomeRowsSettingsView(
-                        sessionManager: sessionManager,
-                        settingsManager: settingsManager,
-                    )
-                }
+                #if !os(macOS)
+                    NavigationLink("settings.interface.homeRows.title") {
+                        HomeRowsSettingsView(
+                            sessionManager: sessionManager,
+                            settingsManager: settingsManager,
+                        )
+                    }
+                #endif
                 Picker(
                     "settings.interface.continueWatchingAction",
                     selection: Binding(
@@ -230,12 +232,14 @@ struct SettingsInterfaceView: View {
             }
 
             Section {
-                NavigationLink("settings.interface.manageLibraries") {
-                    LibrariesSettingsView(
-                        settingsManager: settingsManager,
-                        libraryStore: libraryStore,
-                    )
-                }
+                #if !os(macOS)
+                    NavigationLink("settings.interface.manageLibraries") {
+                        LibrariesSettingsView(
+                            settingsManager: settingsManager,
+                            libraryStore: libraryStore,
+                        )
+                    }
+                #endif
                 Picker(
                     "settings.interface.libraries.defaultLayout",
                     selection: Binding(

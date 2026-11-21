@@ -4,6 +4,8 @@ import SwiftUI
 struct MacSettingsView: View {
     enum Category: String, CaseIterable, Identifiable {
         case interface
+        case homeRows
+        case manageLibraries
         case playback
         case audio
         case subtitles
@@ -20,6 +22,8 @@ struct MacSettingsView: View {
         var titleKey: LocalizedStringKey {
             switch self {
             case .interface: "settings.interface.title"
+            case .homeRows: "settings.interface.homeRows.title"
+            case .manageLibraries: "settings.interface.manageLibraries"
             case .playback: "settings.playback.title"
             case .audio: "settings.playback.audio.title"
             case .subtitles: "settings.playback.subtitles.title"
@@ -36,6 +40,8 @@ struct MacSettingsView: View {
         var systemImage: String {
             switch self {
             case .interface: "macwindow"
+            case .homeRows: "rectangle.3.group.fill"
+            case .manageLibraries: "rectangle.stack.fill"
             case .playback: "play.circle.fill"
             case .audio: "speaker.wave.2.fill"
             case .subtitles: "captions.bubble.fill"
@@ -52,6 +58,8 @@ struct MacSettingsView: View {
         var tint: Color {
             switch self {
             case .interface: .blue
+            case .homeRows: .indigo
+            case .manageLibraries: .teal
             case .playback: .orange
             case .audio: .pink
             case .subtitles: .teal
@@ -72,7 +80,7 @@ struct MacSettingsView: View {
     @State private var selection: Category = .playback
 
     private var generalCategories: [Category] {
-        [.interface, .playback, .audio, .subtitles, .accountPreferences]
+        [.interface, .homeRows, .manageLibraries, .playback, .audio, .subtitles, .accountPreferences]
     }
 
     private var storageCategories: [Category] {
@@ -142,6 +150,16 @@ struct MacSettingsView: View {
         switch category {
         case .interface:
             SettingsInterfaceView(
+                settingsManager: settingsManager,
+                libraryStore: libraryStore,
+            )
+        case .homeRows:
+            HomeRowsSettingsView(
+                sessionManager: sessionManager,
+                settingsManager: settingsManager,
+            )
+        case .manageLibraries:
+            LibrariesSettingsView(
                 settingsManager: settingsManager,
                 libraryStore: libraryStore,
             )
