@@ -403,12 +403,17 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
         for (key, value) in request.options where !value.isEmpty {
             upsertQueryItem(&query, name: "prefs[\(key)]", value: value)
         }
-        try await network.send(
-            path: "/media/subscriptions",
-            queryItems: query,
-            method: "POST",
-            encodesPlusSign: true,
-        )
+        do {
+            try await network.send(
+                path: "/media/subscriptions",
+                queryItems: query,
+                method: "POST",
+                encodesPlusSign: true,
+            )
+        } catch let PlexAPIError.serverError(statusCode, message) {
+            let debugInfo = "guid=\(guid) type=\(resolvedType) lib=\(request.targetLibraryID ?? "nil") params=\(string(entry["parameters"]) ?? "nil")"
+            throw PlexAPIError.serverError(statusCode: statusCode, message: "\(message)\n\(debugInfo)")
+        }
     }
 
     private func upsertQueryItem(_ items: inout [URLQueryItem], name: String, value: String) {
