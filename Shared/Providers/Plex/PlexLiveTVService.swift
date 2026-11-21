@@ -409,13 +409,27 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
             let encodedLib = library.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? library
             queryParts.append("targetLibrarySectionID=\(encodedLib)")
         }
-        for (key, value) in request.options where !value.isEmpty {
+        for setting in dictionaries(entry["Setting"]) {
+            guard let key = string(setting["id"]) else { continue }
+            let value = request.options[key] ?? string(setting["value"] ?? setting["default"]) ?? ""
             let prefKey = "prefs[\(key)]"
             let encodedPrefKey = prefKey.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? prefKey
             let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
             if !existingKeys.contains(encodedPrefKey), !existingKeys.contains(prefKey) {
                 queryParts.append("\(encodedPrefKey)=\(encodedValue)")
             }
+        }
+        let templateSettingIDs = Set(dictionaries(entry["Setting"]).compactMap { string($0["id"]) })
+        for (key, value) in request.options where !templateSettingIDs.contains(key) {
+            let prefKey = "prefs[\(key)]"
+            let encodedPrefKey = prefKey.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? prefKey
+            let encodedValue = value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? value
+            if !existingKeys.contains(encodedPrefKey), !existingKeys.contains(prefKey) {
+                queryParts.append("\(encodedPrefKey)=\(encodedValue)")
+            }
+        }
+        if !existingKeys.contains("includeGrabs") {
+            queryParts.append("includeGrabs=1")
         }
         let rawQuery = queryParts.joined(separator: "&")
         try await network.send(
