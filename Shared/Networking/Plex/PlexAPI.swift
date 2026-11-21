@@ -17,6 +17,20 @@ extension PlexAPIError {
     }
 }
 
+extension PlexAPIError: LocalizedError {
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL: "无效的请求地址"
+        case .invalidResponse: "服务器返回了无效响应"
+        case .missingAuthToken: "缺少认证令牌"
+        case .missingConnection: "未连接到服务器"
+        case .unreachableServer: "无法连接到服务器"
+        case let .requestFailed(statusCode): "服务器请求失败 (HTTP \(statusCode))"
+        case let .decodingFailed(error): "数据解析失败：\(error.localizedDescription)"
+        }
+    }
+}
+
 enum PlexServerAccessRecoveryError: Error, Equatable {
     case accountUnauthorized
     case serverUnavailable

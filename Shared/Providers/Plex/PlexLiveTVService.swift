@@ -312,7 +312,7 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
             context: context,
             server: context.serverAccessSnapshot().serverIdentity,
         ).libraries()
-            .filter { $0.type == .movie || $0.type == .series }
+            .filter { !$0.isShared && $0.sectionId != nil }
         let fallbackMovieLibraryID = libraries.first(where: { $0.type == .movie })?.id ?? libraries.first?.id
         let fallbackSeriesLibraryID = libraries.first(where: { $0.type == .series })?.id ?? libraries.first?.id
         return DVRRecordingTemplate(
@@ -403,7 +403,7 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
         for (key, value) in request.options {
             upsertQueryItem(&query, name: "prefs[\(key)]", value: value)
         }
-        _ = try await network.json(path: "/media/subscriptions", queryItems: query, method: "POST")
+        try await network.send(path: "/media/subscriptions", queryItems: query, method: "POST")
     }
 
     private func upsertQueryItem(_ items: inout [URLQueryItem], name: String, value: String) {
