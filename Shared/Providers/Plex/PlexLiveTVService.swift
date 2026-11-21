@@ -262,17 +262,26 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
         let root = try await network.json(path: "/media/subscriptions/scheduled")
         guard let container = mediaContainer(root) else { return [] }
         return dictionaries(container["MediaGrabOperation"]).map { operation in
-            let metadata = dictionary(operation["Metadata"]) ?? [:]
+            let metadata = dictionary(operation["Metadata"]) ?? dictionaries(operation["Metadata"]).first ?? [:]
             let program = parsePrograms(metadata, provider: "").first
+            let subscriptionID = string(operation["mediaSubscriptionID"] ?? operation["subscriptionID"])
+            let matchedProgram = program.flatMap { p in lastPrograms.first(where: { $0.id == p.id }) }
+                ?? subscriptionID.flatMap { subID in lastPrograms.first(where: { $0.recordingID == subID || $0.seriesRecordingID == subID }) }
+            let subscriptionParams = dictionaries(operation["MediaSubscription"]).first.flatMap { string($0["parameters"]) }
             let rawStatus = string(operation["status"])?.lowercased()
+            let title = program?.title
+                ?? matchedProgram?.title
+                ?? string(metadata["grandparentTitle"] ?? metadata["title"] ?? operation["title"])
+                ?? hintTitle(from: subscriptionParams)
+                ?? String(localized: "livetv.program.unknown")
             return DVRRecording(
                 id: string(operation["key"] ?? operation["id"]) ?? UUID().uuidString,
-                title: program?.title ?? string(metadata["title"]) ?? String(localized: "livetv.program.unknown"),
-                channelTitle: program.flatMap { program in lastPrograms.first(where: { $0.id == program.id })?.title },
-                startDate: program?.startDate,
-                endDate: program?.endDate,
+                title: title,
+                channelTitle: matchedProgram?.channelID,
+                startDate: program?.startDate ?? matchedProgram?.startDate,
+                endDate: program?.endDate ?? matchedProgram?.endDate,
                 status: Self.recordingStatus(from: rawStatus) ?? .scheduled,
-                programID: program?.id,
+                programID: program?.id ?? matchedProgram?.id,
                 playableMedia: nil,
                 errorMessage: string(operation["error"]),
             )
@@ -448,7 +457,13 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
     }
 
     func cancel(recordingID: String) async throws {
-        let path = recordingID.hasPrefix("/") ? recordingID : "/media/grabbers/operations/\(recordingID)"
+        let path: String = if recordingID.hasPrefix("/") {
+            recordingID
+        } else if !recordingID.isEmpty, recordingID.allSatisfy(\.isNumber) {
+            "/media/subscriptions/\(recordingID)"
+        } else {
+            "/media/grabbers/operations/\(recordingID)"
+        }
         try await network.send(path: path, method: "DELETE")
     }
 
@@ -596,9 +611,14 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
     private func parseRule(_ item: [String: Any]) -> DVRRecordingRule? {
         guard let id = string(item["key"] ?? item["id"]) else { return nil }
         let settings = dictionaries(item["Setting"])
+        let title = string(item["title"])
+            ?? dictionaries(item["Directory"]).first.flatMap { string($0["title"]) }
+            ?? dictionaries(item["Metadata"]).first.flatMap { string($0["grandparentTitle"] ?? $0["title"]) }
+            ?? hintTitle(from: string(item["parameters"]))
+            ?? String(localized: "livetv.recording.rule")
         return DVRRecordingRule(
             id: id,
-            title: string(item["title"]) ?? String(localized: "livetv.recording.rule"),
+            title: title,
             isSeries: int(item["type"]) == 2,
             targetLibraryID: string(item["targetLibrarySectionID"]),
             targetLibraryTitle: string(item["librarySectionTitle"]),
@@ -611,6 +631,16 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
             ),
             options: recordingOptions(from: settings),
         )
+    }
+
+    private func hintTitle(from parameters: String?) -> String? {
+        guard let parameters,
+              let components = URLComponents(string: "https://localhost/?\(parameters)")
+        else { return nil }
+        return components.queryItems?
+            .first(where: { $0.name == "hints[title]" || $0.name == "hints[grandparentTitle]" })?
+            .value?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func favoriteChannelKeys() async throws -> [FavoriteChannelKey] {
