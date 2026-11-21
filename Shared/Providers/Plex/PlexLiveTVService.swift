@@ -261,26 +261,37 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
     func upcomingRecordings() async throws -> [DVRRecording] {
         let root = try await network.json(path: "/media/subscriptions/scheduled")
         guard let container = mediaContainer(root) else { return [] }
-        return dictionaries(container["MediaGrabOperation"]).map { operation in
-            let metadata = dictionary(operation["Metadata"]) ?? dictionaries(operation["Metadata"]).first ?? [:]
+        return dictionaries(container["MediaGrabOperation"]).compactMap { operation in
+            let rawStatus = string(operation["status"])?.lowercased()
+            let status = Self.recordingStatus(from: rawStatus) ?? .scheduled
+            guard status == .scheduled || status == .recording else { return nil }
+
+            let metadata = dictionary(operation["Metadata"])
+                ?? dictionary(operation["Video"])
+                ?? dictionaries(operation["Metadata"]).first
+                ?? dictionaries(operation["Video"]).first
+                ?? [:]
             let program = parsePrograms(metadata, provider: "").first
             let subscriptionID = string(operation["mediaSubscriptionID"] ?? operation["subscriptionID"])
             let matchedProgram = program.flatMap { p in lastPrograms.first(where: { $0.id == p.id }) }
                 ?? subscriptionID.flatMap { subID in lastPrograms.first(where: { $0.recordingID == subID || $0.seriesRecordingID == subID }) }
             let subscriptionParams = dictionaries(operation["MediaSubscription"]).first.flatMap { string($0["parameters"]) }
-            let rawStatus = string(operation["status"])?.lowercased()
+            let media = dictionary(metadata["Media"]) ?? dictionaries(metadata["Media"]).first
+            let mediaStart = media.flatMap { double($0["beginsAt"]) }.map { Date(timeIntervalSince1970: $0) }
+            let mediaEnd = media.flatMap { double($0["endsAt"]) }.map { Date(timeIntervalSince1970: $0) }
+            let mediaChannel = media.flatMap { string($0["channelTitle"] ?? $0["channelIdentifier"]) }
             let title = program?.title
                 ?? matchedProgram?.title
                 ?? string(metadata["grandparentTitle"] ?? metadata["title"] ?? operation["title"])
                 ?? hintTitle(from: subscriptionParams)
                 ?? String(localized: "livetv.program.unknown")
             return DVRRecording(
-                id: string(operation["key"] ?? operation["id"]) ?? UUID().uuidString,
+                id: string(operation["key"] ?? operation["id"] ?? subscriptionID) ?? UUID().uuidString,
                 title: title,
-                channelTitle: matchedProgram?.channelID,
-                startDate: program?.startDate ?? matchedProgram?.startDate,
-                endDate: program?.endDate ?? matchedProgram?.endDate,
-                status: Self.recordingStatus(from: rawStatus) ?? .scheduled,
+                channelTitle: matchedProgram?.channelID ?? mediaChannel,
+                startDate: program?.startDate ?? matchedProgram?.startDate ?? mediaStart,
+                endDate: program?.endDate ?? matchedProgram?.endDate ?? mediaEnd,
+                status: status,
                 programID: program?.id ?? matchedProgram?.id,
                 playableMedia: nil,
                 errorMessage: string(operation["error"]),
