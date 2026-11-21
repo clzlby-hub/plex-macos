@@ -532,7 +532,21 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
         } else {
             "/media/grabbers/operations/\(recordingID)"
         }
-        try await network.send(path: path, method: "DELETE")
+        do {
+            try await network.send(path: path, method: "DELETE")
+        } catch let error as PlexAPIError {
+            switch error {
+            case .requestFailed(statusCode: 403), .requestFailed(statusCode: 404),
+                 .serverError(statusCode: 403, message: _), .serverError(statusCode: 404, message: _):
+                let active = (try? await upcomingRecordings()) ?? []
+                if !active.contains(where: { $0.id == recordingID }) {
+                    return
+                }
+                throw error
+            default:
+                throw error
+            }
+        }
     }
 
     func delete(ruleID: String) async throws {
@@ -669,7 +683,7 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
         switch rawValue?.lowercased() {
         case "scheduled", "new": .scheduled
         case "grabbing", "inprogress", "recording": .recording
-        case "completed", "complete": .completed
+        case "completed", "complete", "postprocessing": .completed
         case "cancelled", "canceled": .cancelled
         case "error": .error
         default: nil

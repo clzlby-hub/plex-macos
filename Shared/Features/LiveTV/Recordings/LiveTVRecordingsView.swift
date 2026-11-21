@@ -114,6 +114,9 @@ struct LiveTVRecordingsView: View {
                 Text(errorMessage)
             }
         }
+        .task {
+            await store.refreshDVR()
+        }
     }
 
     @ViewBuilder
