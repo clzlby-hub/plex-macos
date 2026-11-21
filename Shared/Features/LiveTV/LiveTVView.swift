@@ -82,6 +82,7 @@ struct LiveTVView: View {
                         onPlayRecording: onPlayRecording,
                         onOpenLibrary: onOpenLibrary,
                         onShowProgram: { selectedProgram = $0 },
+                        onPlayChannel: playInProgressRecording,
                     )
                 }
             }
@@ -342,5 +343,18 @@ struct LiveTVView: View {
     private func tune(_ channel: LiveTVChannel) {
         guard let index = store.channels.firstIndex(where: { $0.identity == channel.identity }) else { return }
         onPlayLive(LiveTVLaunchContext(channels: store.channels, selectedIndex: index))
+    }
+
+    private func playInProgressRecording(_ recording: DVRRecording, program: LiveTVProgram?) {
+        if let program {
+            tune(program, fromStart: store.supportsServerCaptureBuffer)
+            return
+        }
+        guard let channelTitle = recording.channelTitle,
+              let channel = store.channels.first(where: {
+                  $0.id == channelTitle || $0.number == channelTitle || $0.title == channelTitle
+              })
+        else { return }
+        tune(channel)
     }
 }

@@ -1625,7 +1625,7 @@ enum PlexMediaServicesFactory {
             store: favoritesStore,
             scope: .plex(serverID: identity.id, profileID: favoritesProfileID),
         )
-        let liveTV = PlexLiveTVService(context: context)
+        let liveTV = PlexLiveTVService(context: context, server: identity)
         let playlists = PlexPlaylistService(context: context, server: identity)
         #if os(tvOS)
             let decorated = (

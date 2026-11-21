@@ -36,6 +36,9 @@ struct LiveTVRecordingCard: View {
         #endif
             .onTapGesture(perform: onOpen)
             .contextMenu {
+                if recording.status == .recording || recording.playableMedia != nil {
+                    Button("livetv.watchLive", systemImage: "play.fill", action: onOpen)
+                }
                 if let onCancel {
                     Button("livetv.recording.cancel", systemImage: "xmark.circle", role: .destructive, action: onCancel)
                 }

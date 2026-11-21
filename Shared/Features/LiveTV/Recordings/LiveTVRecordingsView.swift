@@ -6,6 +6,7 @@ struct LiveTVRecordingsView: View {
     let onPlayRecording: (MediaItem) -> Void
     let onOpenLibrary: (String) -> Void
     let onShowProgram: (LiveTVProgram) -> Void
+    var onPlayChannel: ((DVRRecording, LiveTVProgram?) -> Void)?
 
     @Environment(SettingsManager.self) private var settingsManager
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -215,6 +216,8 @@ struct LiveTVRecordingsView: View {
     private func open(_ recording: DVRRecording) {
         if let media = recording.playableMedia {
             onPlayRecording(media)
+        } else if recording.status == .recording, let onPlayChannel {
+            onPlayChannel(recording, program(for: recording))
         } else if let program = program(for: recording) {
             onShowProgram(program)
         } else if canManage, recording.status != .completed {

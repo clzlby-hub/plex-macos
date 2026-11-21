@@ -15,14 +15,16 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
     }
 
     private let context: PlexAPIContext
+    private let server: ServerIdentity
     private let network: PlexServerNetworkClient
     private var dvrs: [[String: Any]] = []
     private var providers: [EPGProvider] = []
     private var lastPrograms: [LiveTVProgram] = []
     private var discoveredChannelThumbs: [String: String] = [:]
 
-    init(context: PlexAPIContext) {
+    init(context: PlexAPIContext, server: ServerIdentity) {
         self.context = context
+        self.server = server
         network = PlexServerNetworkClient(context: context)
     }
 
@@ -35,7 +37,7 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
     }
 
     var supportsCompletedRecordings: Bool {
-        false
+        true
     }
 
     var canManageRecordings: Bool {
@@ -43,7 +45,7 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
     }
 
     var canDeleteRecordings: Bool {
-        false
+        true
     }
 
     func isAvailable() async throws -> Bool {
@@ -279,7 +281,7 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
             let media = dictionary(metadata["Media"]) ?? dictionaries(metadata["Media"]).first
             let mediaStart = media.flatMap { double($0["beginsAt"]) }.map { Date(timeIntervalSince1970: $0) }
             let mediaEnd = media.flatMap { double($0["endsAt"]) }.map { Date(timeIntervalSince1970: $0) }
-            let mediaChannel = media.flatMap { string($0["channelTitle"] ?? $0["channelIdentifier"]) }
+            let mediaChannel = media.flatMap { string($0["channelIdentifier"] ?? $0["channelTitle"]) }
             let title = program?.title
                 ?? matchedProgram?.title
                 ?? string(metadata["grandparentTitle"] ?? metadata["title"] ?? operation["title"])
@@ -312,7 +314,62 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
     }
 
     func completedRecordings() async throws -> [DVRRecording] {
-        []
+        let sectionRepository = SectionRepository(context: context)
+        let sections = try await sectionRepository.getSections().mediaContainer.directory ?? []
+        let targetSections = sections.filter {
+            ($0.type == .movie || $0.type == .show) && Int($0.key) != nil
+        }
+        guard !targetSections.isEmpty else { return [] }
+
+        let items = await withTaskGroup(of: [PlexItem].self) { group in
+            for section in targetSections {
+                guard let sectionID = Int(section.key) else { continue }
+                group.addTask { @MainActor in
+                    let itemType = section.type == .show ? "4" : "1"
+                    let params = SectionRepository.SectionItemsParams(sort: "addedAt:desc", type: itemType)
+                    let pagination = PlexPagination(start: 0, size: 100)
+                    let response = try? await sectionRepository.getSectionsItems(
+                        sectionId: sectionID,
+                        params: params,
+                        pagination: pagination,
+                    )
+                    return response?.mediaContainer.metadata ?? []
+                }
+            }
+            var collected: [PlexItem] = []
+            for await batch in group {
+                collected.append(contentsOf: batch)
+            }
+            return collected
+        }
+
+        var seenIDs = Set<String>()
+        return items
+            .filter { Self.isDVRRecording($0) && seenIDs.insert($0.ratingKey).inserted }
+            .sorted { ($0.addedAt ?? 0) > ($1.addedAt ?? 0) }
+            .map { item in
+                let displayTitle = item.grandparentTitle.map { "\($0) · \(item.title)" } ?? item.title
+                return DVRRecording(
+                    id: item.ratingKey,
+                    title: displayTitle,
+                    channelTitle: item.librarySectionTitle,
+                    startDate: item.addedAt.map { Date(timeIntervalSince1970: TimeInterval($0)) },
+                    endDate: nil,
+                    status: .completed,
+                    programID: nil,
+                    playableMedia: MediaItem(plexItem: item, server: server),
+                    errorMessage: nil,
+                )
+            }
+    }
+
+    private static func isDVRRecording(_ item: PlexItem) -> Bool {
+        if item.guid.hasPrefix("tv.plex.xmltv://") || item.guid.contains("xmltv") {
+            return true
+        }
+        return item.media?.contains { media in
+            media.parts?.contains { ($0.file ?? "").lowercased().hasSuffix(".ts") } == true
+        } == true
     }
 
     func recordingTemplate(for program: LiveTVProgram) async throws -> DVRRecordingTemplate {
@@ -482,8 +539,8 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
         try await network.send(path: "/media/subscriptions/\(ruleID)", method: "DELETE")
     }
 
-    func deleteCompleted(recordingID _: String) async throws {
-        throw PlexAPIError.invalidResponse
+    func deleteCompleted(recordingID: String) async throws {
+        try await network.send(path: "/library/metadata/\(recordingID)", method: "DELETE")
     }
 
     func reloadGuide() async throws {
