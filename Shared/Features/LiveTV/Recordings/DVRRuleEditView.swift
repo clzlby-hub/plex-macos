@@ -78,10 +78,15 @@ struct DVRRuleEditView: View {
                             dismiss()
                             onDelete()
                         }
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .disabled(isSaving)
                     }
                 }
             }
+            #if os(macOS)
+            .formStyle(.grouped)
+            .frame(minWidth: 420)
+            #endif
             .taskModalTitle("livetv.dvr.editRule")
             .taskModalActions {
                 Button("common.done") { save() }
