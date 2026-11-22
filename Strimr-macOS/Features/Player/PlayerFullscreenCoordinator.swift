@@ -60,9 +60,6 @@ final class PlayerFullscreenCoordinator: NSObject {
         self.window = window
         Self.currentWindow = window
         window.isReleasedWhenClosed = false
-        if !pendingHide {
-            window.alphaValue = 1
-        }
 
         let currentlyFullScreen = window.styleMask.contains(.fullScreen)
         fullScreenPhase = currentlyFullScreen ? .fullScreen : .windowed
@@ -112,7 +109,6 @@ final class PlayerFullscreenCoordinator: NSObject {
         cancelPendingHideWork()
 
         guard let target = window else { return }
-        target.alphaValue = 1
         installCloseButtonAction(on: target)
 
         playerWinLog.notice(
@@ -126,7 +122,6 @@ final class PlayerFullscreenCoordinator: NSObject {
 
     func bringCurrentWindowToFront() {
         guard let target = resolveWindow(), !pendingHide else { return }
-        target.alphaValue = 1
         NSApp.activate(ignoringOtherApps: true)
         if target.isMiniaturized {
             target.deminiaturize(nil)
@@ -182,10 +177,6 @@ final class PlayerFullscreenCoordinator: NSObject {
             || fullScreenPhase == .fullScreen
             || fullScreenPhase == .entering
             || fullScreenPhase == .exiting
-
-        if needsFullScreenExit {
-            target.alphaValue = 0
-        }
 
         // Give the close-button click inside NSToolbarFullScreenWindow and SwiftUI's PlayerView
         // teardown a brief settle tick before requesting toggleFullScreen so AppKit does not
@@ -307,14 +298,11 @@ final class PlayerFullscreenCoordinator: NSObject {
                 forName: NSWindow.willExitFullScreenNotification,
                 object: window,
                 queue: .main,
-            ) { [weak self, weak window] _ in
+            ) { [weak self] _ in
                 MainActor.assumeIsolated {
                     guard let self else { return }
                     self.fullScreenPhase = .exiting
                     self.isTransitioning = true
-                    if self.pendingHide {
-                        window?.alphaValue = 0
-                    }
                     playerWinLog.notice("willExitFullScreen pendingHide=\(self.pendingHide)")
                 }
             },
@@ -520,7 +508,6 @@ final class PlayerFullscreenCoordinator: NSObject {
 
     private func bringToFront(_ target: NSWindow, for presentationID: UUID) {
         guard activePresentationID == presentationID, !pendingHide else { return }
-        target.alphaValue = 1
         NSApp.activate(ignoringOtherApps: true)
         if target.isMiniaturized {
             target.deminiaturize(nil)
