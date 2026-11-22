@@ -10,6 +10,7 @@ struct DVRRuleEditView: View {
     let rule: DVRRecordingRule
     let dvr: (any MediaDVRService)?
     let onChanged: () async -> Void
+    var onDelete: (() -> Void)?
     private let baselineValues: [String: String]
 
     @Environment(\.dismiss) private var dismiss
@@ -17,10 +18,16 @@ struct DVRRuleEditView: View {
     @State private var errorMessage: String?
     @State private var isSaving = false
 
-    init(rule: DVRRecordingRule, dvr: (any MediaDVRService)?, onChanged: @escaping () async -> Void) {
+    init(
+        rule: DVRRecordingRule,
+        dvr: (any MediaDVRService)?,
+        onChanged: @escaping () async -> Void,
+        onDelete: (() -> Void)? = nil,
+    ) {
         self.rule = rule
         self.dvr = dvr
         self.onChanged = onChanged
+        self.onDelete = onDelete
         let initialValues = Dictionary(uniqueKeysWithValues: rule.options.map { option in
             (option.id, rule.optionValues[option.id] ?? option.resolvedValue)
         })
@@ -64,6 +71,15 @@ struct DVRRuleEditView: View {
                 }
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
+                }
+                if let onDelete {
+                    Section {
+                        Button("common.delete", systemImage: "trash", role: .destructive) {
+                            dismiss()
+                            onDelete()
+                        }
+                        .disabled(isSaving)
+                    }
                 }
             }
             .taskModalTitle("livetv.dvr.editRule")

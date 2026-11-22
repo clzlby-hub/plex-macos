@@ -8,6 +8,7 @@ struct LiveTVRecordingsView: View {
     let onShowProgram: (LiveTVProgram) -> Void
     var onPlayChannel: ((DVRRecording, LiveTVProgram?) -> Void)?
 
+    @Environment(MediaServices.self) private var services
     @Environment(SettingsManager.self) private var settingsManager
     @Environment(\.horizontalSizeClass) private var sizeClass
     @State private var pendingRecordingCancellation: DVRRecording?
@@ -60,7 +61,12 @@ struct LiveTVRecordingsView: View {
             .padding(.bottom, 24)
         }
         .taskPresentation(item: $selectedRule) { rule in
-            DVRRuleEditView(rule: rule, dvr: store.dvr) { await store.refreshDVR() }
+            DVRRuleEditView(
+                rule: rule,
+                dvr: store.dvr,
+                onChanged: { await store.refreshDVR() },
+                onDelete: canManage ? { pendingRuleDeletion = rule } : nil,
+            )
         }
         .confirmationDialog(
             "livetv.recording.cancel.confirm",
@@ -137,7 +143,9 @@ struct LiveTVRecordingsView: View {
                                 onCancel: canManage && recording.status != .completed
                                     ? { pendingRecordingCancellation = recording }
                                     : nil,
-                                onDelete: recording.status == .completed && store.dvr?.canDeleteRecordings == true
+                                onDelete: recording.status == .completed
+                                    && store.dvr?.canDeleteRecordings == true
+                                    && services.authorization.canDeleteMedia
                                     ? { pendingRecordingDeletion = recording }
                                     : nil,
                             )
@@ -207,6 +215,10 @@ struct LiveTVRecordingsView: View {
             }
             if let libraryID = rule.targetLibraryID {
                 Button("livetv.dvr.openLibrary", systemImage: "rectangle.stack") { onOpenLibrary(libraryID) }
+                    .actionButtonStyle(.secondary)
+            }
+            if canManage {
+                Button("common.delete", systemImage: "trash", role: .destructive) { pendingRuleDeletion = rule }
                     .actionButtonStyle(.secondary)
             }
         }
