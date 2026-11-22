@@ -525,9 +525,14 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
     }
 
     func cancel(recordingID: String) async throws {
+        let isSubscriptionID = !recordingID.isEmpty && recordingID.allSatisfy(\.isNumber)
+        let singleSubscriptionID = isSubscriptionID
+            ? nil
+            : await singleRecordingSubscriptionID(forOperationID: recordingID)
+
         let path: String = if recordingID.hasPrefix("/") {
             recordingID
-        } else if !recordingID.isEmpty, recordingID.allSatisfy(\.isNumber) {
+        } else if isSubscriptionID {
             "/media/subscriptions/\(recordingID)"
         } else {
             "/media/grabbers/operations/\(recordingID)"
@@ -540,6 +545,9 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
                  .serverError(statusCode: 403, message: _), .serverError(statusCode: 404, message: _):
                 let active = (try? await upcomingRecordings()) ?? []
                 if !active.contains(where: { $0.id == recordingID }) {
+                    if let singleSubscriptionID {
+                        try? await network.send(path: "/media/subscriptions/\(singleSubscriptionID)", method: "DELETE")
+                    }
                     return
                 }
                 throw error
@@ -547,6 +555,30 @@ final class PlexLiveTVService: MediaLiveTVService, MediaDVRService {
                 throw error
             }
         }
+        if let singleSubscriptionID {
+            try? await network.send(path: "/media/subscriptions/\(singleSubscriptionID)", method: "DELETE")
+        }
+    }
+
+    /// Finds the parent single-episode subscription ID for a grabber operation so cancelling from DVR also clears the guide badge.
+    private func singleRecordingSubscriptionID(forOperationID operationID: String) async -> String? {
+        guard let root = try? await network.json(
+            path: "/media/subscriptions",
+            queryItems: [URLQueryItem(name: "includeGrabs", value: "1")],
+        ),
+            let container = mediaContainer(root)
+        else { return nil }
+
+        for subscription in dictionaries(container["MediaSubscription"]) {
+            guard int(subscription["type"]) != 2,
+                  let subID = string(subscription["key"] ?? subscription["id"])
+            else { continue }
+            let grabs = dictionaries(subscription["MediaGrabOperation"])
+            if grabs.contains(where: { string($0["key"] ?? $0["id"]) == operationID }) {
+                return subID
+            }
+        }
+        return nil
     }
 
     func delete(ruleID: String) async throws {
