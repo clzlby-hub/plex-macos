@@ -85,7 +85,7 @@ struct StrimrApp: App {
         }
         .defaultSize(width: 1120, height: 630)
         .windowResizability(.contentMinSize)
-        .windowToolbarStyle(.unified)
+        .windowStyle(.hiddenTitleBar)
         .restorationBehavior(.disabled)
 
         Settings {

@@ -73,6 +73,7 @@ final class PlayerFullscreenCoordinator: NSObject {
         if !currentlyFullScreen {
             configureWindowForFullScreen(window)
         }
+        configureTransparentTitleBar(on: window)
         installCloseButtonAction(on: window)
         installObservers(for: window)
 
@@ -548,6 +549,15 @@ final class PlayerFullscreenCoordinator: NSObject {
         window.collectionBehavior.remove(.fullScreenNone)
         window.collectionBehavior.remove(.fullScreenAuxiliary)
         window.collectionBehavior.insert(.fullScreenPrimary)
+    }
+
+    private func configureTransparentTitleBar(on window: NSWindow) {
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        if !window.styleMask.contains(.fullSizeContentView) {
+            window.styleMask.insert(.fullSizeContentView)
+        }
+        window.isMovableByWindowBackground = true
     }
 
     private func configureWindowForFullScreen(_ window: NSWindow) {
