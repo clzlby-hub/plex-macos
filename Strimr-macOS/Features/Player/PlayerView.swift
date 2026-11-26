@@ -1532,10 +1532,11 @@ struct PlayerView: View {
     private var resolutionBadgeTitle: String? {
         guard let size = playerController.sourceVideoSize else { return nil }
         let width = max(size.width, size.height)
-        if width >= 3800 { return "4K" }
-        if width >= 1900 { return "1080p" }
-        if width >= 1260 { return "720p" }
-        if width > 0 { return "\(Int(min(size.width, size.height)))p" }
+        let height = min(size.width, size.height)
+        if width >= 3800 || height >= 2100 { return "4K" }
+        if width >= 1900 || height >= 1060 { return "1080p" }
+        if width >= 1260 || height >= 700 { return "720p" }
+        if height > 0 { return "\(Int(height))p" }
         return nil
     }
 
